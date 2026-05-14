@@ -1,7 +1,8 @@
 from flask import Flask
 from flask_cors import CORS
-import os
 from dotenv import load_dotenv
+from config import *
+from routes.users import users_blp
 
 load_dotenv()
 
@@ -23,9 +24,11 @@ cors = CORS(
 )
 
 
+app.register_blueprint(users_blp, url_prefix="/api/users")
+
 def create_app():
 
-    if os.getenv("FLASK_ENV") == "development":
+    if Config.flask_env == "development":
         print("Running in development mode")
         app.run(debug=True, host="0.0.0.0", port=8080)
     else:

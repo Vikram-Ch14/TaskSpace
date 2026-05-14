@@ -2,15 +2,17 @@ import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 from dotenv import load_dotenv
+from config import *
 
 load_dotenv()
 
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///app.db")
+DATABASE_URL = Config.db_url
+FLASK_ENV = Config.flask_env
 
 engine = create_engine(
     DATABASE_URL,
     connect_args={"check_same_thread": False},
-    echo=os.getenv("FLASK_ENV") == "development",
+    echo=Config.flask_env == "development",
 )
 
 Base = declarative_base()
