@@ -1,0 +1,45 @@
+from flask import Blueprint, request, jsonify, g
+import jwt
+from config import Config
+
+
+def verify_token():
+    auth_header = request.headers.get("Authorization")
+
+    if not auth_header or not auth_header.startswith("Bearer "):
+        return jsonify({"error": "missing token"}), 401
+
+    token = auth_header.split(" ", 1)[1]
+
+    try:
+        payload = jwt.decode(token, Config.jwt_secret_key, algorithms=["HS256"])
+
+        g.user_id = payload["sub"]
+        g.user_role = payload.get("role", "user")
+
+        return None
+
+    except jwt.ExpiredSignatureError:
+        return jsonify({"error": "token expired"}), 401
+
+    except jwt.DecodeError:
+        return jsonify({"error": "token malformed"}), 401
+
+    except jwt.InvalidTokenError:
+        return jsonify({"error": "invalid token"}), 401
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+def authenticateBluePrint(blueprint: Blueprint, skip: set[str] | None = None):
+    skip = skip or set()
+
+    @blueprint.before_request
+    def _authenticate():
+        endpoint_name = (request.endpoint or "").split(".")[-1]
+
+        if endpoint_name in skip:
+            return None
+
+        return verify_token()
