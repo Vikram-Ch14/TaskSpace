@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime, timezone
-from sqlalchemy import Column, String, Index
+from sqlalchemy import Column, DateTime, String, Index
 from sqlalchemy.orm import declarative_base
 from bcrypt import hashpw, gensalt, bcrypt
 
@@ -30,7 +30,7 @@ class User(Base):
     created_at = Column(
         DateTime(timezone=True),
         nullable=False,
-        default=utcnow,
+        default=utc_now,
     )
 
     last_login_at = Column(
