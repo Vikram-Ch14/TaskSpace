@@ -1,5 +1,5 @@
-from backend.src.repo.user_repo import UserRepo
-from backend.src.schemas.user_schema import RegisterUserSchema
+from repo.user_repo import UserRepo
+from schemas.user_schema import RegisterUserSchema
 
 
 class UserService:

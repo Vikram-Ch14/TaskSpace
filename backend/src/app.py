@@ -1,7 +1,7 @@
 from flask import Flask
 from flask_cors import CORS
-from controller.users import users_blp
 from dotenv import load_dotenv
+from controller.user_controller import users_blp
 from middleware.auth import authenticateBluePrint
 from config import *
 
@@ -21,9 +21,9 @@ CORS(
     supports_credentials=True,
 )
 
-authenticateBluePrint(users_blp, skip={"login", "register"})
+authenticateBluePrint(users_blp, skip={"login", "RegisterUser"})
 
-app.register_blueprint(users_blp, url_prefix="/api/users")
+app.register_blueprint(users_blp, url_prefix="/api/user")
 
 
 def run_app():

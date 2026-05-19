@@ -1,8 +1,7 @@
 import uuid
 from datetime import datetime, timezone
-from sqlalchemy import Column, DateTime, String, Index
-from sqlalchemy.orm import declarative_base
-from bcrypt import hashpw, gensalt, bcrypt
+from sqlalchemy import Column, DateTime, String
+import bcrypt
 
 from database import Base
 
@@ -19,7 +18,7 @@ class User(Base):
 
     __tablename__ = "users"
 
-    id = Column(String, primary_key=True, default=gen_uuid)
+    id = Column(String(36), primary_key=True, default=gen_uuid)
 
     email = Column(String(255), unique=True, nullable=False)
 
@@ -39,7 +38,7 @@ class User(Base):
     )
 
     def set_password(self, password: str) -> None:
-        self.password_hash = hashpw(password.encode("utf-8"), gensalt()).decode("utf-8")
+        self.password_hash = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
     def check_password(self, password: str) -> bool:
         return bcrypt.checkpw(

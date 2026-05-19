@@ -1,8 +1,8 @@
-from flask import Blueprint, g, request, jsonify
+from flask import Blueprint, g, jsonify
 from flask.views import MethodView
-from backend.src.core.validators import validate
-from backend.src.schemas.user_schema import RegisterUserSchema
-from backend.src.services.user_service import UserService
+from core.validators import validate
+from schemas.user_schema import RegisterUserSchema, UserResponseSchema
+from services.user_service import UserService
 
 users_blp = Blueprint("users", __name__)
 
@@ -11,5 +11,11 @@ users_blp = Blueprint("users", __name__)
 class RegisterUser(MethodView):
     @validate(RegisterUserSchema)
     def post(self):
-        data = g.data
-        return UserService().create_user(data)
+        try:
+            data = g.data
+            print("Received registration data:", data)
+            user = UserService().create_user(data)
+            response = UserResponseSchema.model_validate(user)
+            return response.model_dump(), 201
+        except ValueError as e:
+            return jsonify({"message": str(e)}), 400

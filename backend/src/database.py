@@ -1,4 +1,3 @@
-import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 from dotenv import load_dotenv
@@ -16,5 +15,7 @@ engine = create_engine(
 )
 
 Base = declarative_base()
+Base.metadata.create_all(bind=engine)
 
 DBSession = sessionmaker(bind=engine, autocommit=False, autoflush=False)
+
