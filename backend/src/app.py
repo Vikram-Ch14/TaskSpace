@@ -21,7 +21,7 @@ CORS(
     supports_credentials=True,
 )
 
-authenticateBluePrint(users_blp, skip={"login", "RegisterUser"})
+authenticateBluePrint(users_blp, skip={"login", "registerUser"})
 
 app.register_blueprint(users_blp, url_prefix="/api/user")
 

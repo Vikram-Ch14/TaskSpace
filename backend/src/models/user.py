@@ -1,9 +1,9 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from sqlalchemy import Column, DateTime, String
 import bcrypt
-
 from database import Base
+import jwt
 
 
 def gen_uuid() -> str:
@@ -44,3 +44,13 @@ class User(Base):
         return bcrypt.checkpw(
             password.encode("utf-8"), self.password_hash.encode("utf-8")
         )
+    
+    def generate_jwt(self, secret_key: str, expires_in: int = 3600, role: str = "editor") -> str:
+        payload = {
+            "sub": self.id,
+            "username": self.username,
+            "email": self.email,
+            "role": role,
+            "exp": datetime.now(timezone.utc) + timedelta(seconds=expires_in)
+        }
+        return jwt.encode(payload, secret_key, algorithm="HS256")

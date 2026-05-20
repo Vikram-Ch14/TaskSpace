@@ -15,6 +15,10 @@ engine = create_engine(
 )
 
 Base = declarative_base()
+
+# Import models so they're registered with Base before create_all()
+from models.user import User
+
 Base.metadata.create_all(bind=engine)
 
 DBSession = sessionmaker(bind=engine, autocommit=False, autoflush=False)

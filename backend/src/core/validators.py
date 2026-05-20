@@ -1,11 +1,13 @@
 from flask import jsonify, request, g
+from functools import wraps
 from pydantic_core import ValidationError
 
 
-def validate(schema):
+def validate(schema):   
 
     def decorator(fn):
 
+        @wraps(fn)
         def wrapper(*args, **kwargs):
 
             try:
