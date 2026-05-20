@@ -37,3 +37,12 @@ def get_profile():
         return UserService().get_user(user_id)
     except Exception as e:
         return jsonify({"message": str(e)}), 400
+    
+
+@users_blp.route("/profile", methods=["DELETE"])
+def delete_profile():
+    try:
+        user_id = g.user_id
+        return UserService().delete_user(user_id)
+    except Exception as e:
+        return jsonify({"message": str(e)}), 400

@@ -50,4 +50,10 @@ class UserRepo:
 
     def delete_user(self, user_id):
         # Logic to delete a user from the database
-        pass
+        with DBSession() as session:
+            user = session.query(User).filter_by(id=user_id).first()
+            if not user:
+                raise ValueError("User not found")
+            session.delete(user)
+            session.commit()
+            return {"message": "User deleted successfully"}
