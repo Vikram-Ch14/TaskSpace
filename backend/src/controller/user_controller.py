@@ -11,7 +11,6 @@ users_blp = Blueprint("users", __name__)
 def registerUser():
     try:
         data = g.data
-        print("data", data)
         user = UserService().create_user(data)
         response = UserResponseSchema.model_validate(user)
         return jsonify(response.model_dump()), 201

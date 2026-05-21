@@ -18,6 +18,7 @@ Base = declarative_base()
 
 # Import models so they're registered with Base before create_all()
 from models.user import User
+from models.workspace import Workspace
 
 Base.metadata.create_all(bind=engine)
 
