@@ -1,6 +1,7 @@
 from datetime import datetime
 from pydantic import Field
 from pydantic import BaseModel
+from typing import Optional
 
 class WorkSpaceSchema(BaseModel):
     slug: str = Field(..., min_length=2, max_length=25)
@@ -10,10 +11,9 @@ class WorkSpaceSchema(BaseModel):
 
 class WorkSpaceResponseSchema(BaseModel):
     id: str
-    slug: str
-    name: str
-    owner_id: str
+    username: str
+    email: str
     created_at: datetime
-    updated_at: datetime
+    last_login_at: Optional[datetime] = None
 
     model_config = {"from_attributes": True}

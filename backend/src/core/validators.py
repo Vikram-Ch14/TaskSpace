@@ -3,7 +3,7 @@ from functools import wraps
 from pydantic_core import ValidationError
 
 
-def validate(schema):   
+def validate(schema, arg:str = None):   
 
     def decorator(fn):
 
@@ -11,7 +11,7 @@ def validate(schema):
         def wrapper(*args, **kwargs):
 
             try:
-                json_data = request.get_json()
+                json_data = request.get_json() or request.args.get(arg)
 
                 validated_data = schema(**json_data)
 

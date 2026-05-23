@@ -4,7 +4,7 @@ from models.workspace import Workspace
 from models.workspace_member import WorkspaceMember
 from schemas.user_schema import RegisterUserSchema, UserResponseSchema
 from datetime import datetime, timezone
-from flask import jsonify
+from config import Config
 
 def utc_now() -> datetime:
     return datetime.now(timezone.utc)
@@ -62,7 +62,7 @@ class UserRepo:
             if not workspace:
                 raise ValueError("Workspace not found")
             
-            token = user.generate_jwt(secret_key="secret", role=workspace_member.role, workspace=workspace.slug)
+            token = user.generate_jwt(secret_key=Config.jwt_secret_key, expires_in=3600, role=workspace_member.role, workspace=workspace.slug)
             session.commit()
             return token
     def get_user_by_id(self, user_id):
