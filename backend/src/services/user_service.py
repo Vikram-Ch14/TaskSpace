@@ -1,10 +1,11 @@
 from repo.user_repo import UserRepo
 from schemas.user_schema import RegisterUserSchema
+from config import Config
 
 
 class UserService:
     def create_user(self, user_data: RegisterUserSchema) -> dict:
-        return UserRepo().create_user(user_data)
+        return UserRepo().create_user(user_data, Config.workspace_slug)
     
     def login_user(self, login_data):
         return UserRepo().login_user(login_data)

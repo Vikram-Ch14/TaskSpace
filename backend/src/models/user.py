@@ -45,12 +45,16 @@ class User(Base):
             password.encode("utf-8"), self.password_hash.encode("utf-8")
         )
     
-    def generate_jwt(self, secret_key: str, expires_in: int = 3600, role: str = "editor") -> str:
+    def generate_jwt(self, secret_key: str, expires_in: int = 3600, role: str = "viewer", workspace: str = None) -> str:
         payload = {
             "sub": self.id,
             "username": self.username,
             "email": self.email,
             "role": role,
+            "workspace": workspace,
             "exp": datetime.now(timezone.utc) + timedelta(seconds=expires_in)
         }
         return jwt.encode(payload, secret_key, algorithm="HS256")
+    
+    def __repr__(self):
+        return f"<User id={self.id} email={self.email}>"

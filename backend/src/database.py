@@ -1,26 +1,26 @@
+"""
+src/database.py
+Database engine, session factory, and Base declarative class.
+
+Note: Tables are created via Alembic migrations, NOT via Base.metadata.create_all().
+"""
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
-from dotenv import load_dotenv
-from config import *
 
-load_dotenv()
+from config import Config
 
-DATABASE_URL = Config.db_url
-FLASK_ENV = Config.flask_env
 
+# Engine
 engine = create_engine(
-    DATABASE_URL,
+    Config.db_url,
     connect_args={"check_same_thread": False},
     echo=Config.flask_env == "development",
 )
 
+
+# Base class for all models
 Base = declarative_base()
 
-# Import models so they're registered with Base before create_all()
-from models.user import User
-from models.workspace import Workspace
 
-Base.metadata.create_all(bind=engine)
-
+# Session factory
 DBSession = sessionmaker(bind=engine, autocommit=False, autoflush=False)
-
