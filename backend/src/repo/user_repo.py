@@ -62,7 +62,7 @@ class UserRepo:
             if not workspace:
                 raise ValueError("Workspace not found")
             
-            token = user.generate_jwt(secret_key=Config.jwt_secret_key, expires_in=3600, role=workspace_member.role, workspace=workspace.slug)
+            token = user.generate_jwt(secret_key=Config.jwt_secret_key, expires_in=3600, role=workspace_member.role, workspace=workspace.slug, workspace_id=workspace.id)
             session.commit()
             return token
     def get_user_by_id(self, user_id):

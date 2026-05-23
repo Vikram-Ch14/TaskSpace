@@ -1,5 +1,5 @@
 from repo.member_repo import MemberRepo
 
 class MemberService:
-    def get_members(self, workspace_slug: str):
-        return MemberRepo().get_members(workspace_slug)
+    def get_members(self, workspace_id: str):
+        return MemberRepo().get_members(workspace_id)

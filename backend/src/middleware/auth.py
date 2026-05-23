@@ -16,6 +16,8 @@ def verify_token():
 
         g.user_id = payload["sub"]
         g.user_role = payload.get("role", "user")
+        g.workspace_id = payload.get("workspace_id", None)
+        g.workspace = payload.get("workspace", None)
 
         return None
 
@@ -43,3 +45,29 @@ def authenticateBluePrint(blueprint: Blueprint, skip: set[str] | None = None):
             return None
 
         return verify_token()
+
+
+from functools import wraps
+from flask import jsonify, g
+
+
+def role_required(allowed_roles: list[str]):
+
+    def wrapper(fn):
+
+        @wraps(fn)
+        def decorated(*args, **kwargs):
+
+            user = getattr(g, "user", None)
+
+            if not user:
+                return jsonify({"message": "Unauthorized"}), 401
+
+            if user["role"] not in allowed_roles:
+                return jsonify({"message": "Forbidden"}), 403
+
+            return fn(*args, **kwargs)
+
+        return decorated
+
+    return wrapper

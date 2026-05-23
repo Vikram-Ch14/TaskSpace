@@ -4,12 +4,12 @@ from models.workspace_member import WorkspaceMember
 from schemas.member_schema import MemberResponseSchema
 
 class MemberRepo:
-    def get_members(self, workspace_slug: str = None):
+    def get_members(self, workspace_id: str = None):
         with DBSession() as session:
-            if not workspace_slug:
+            if not workspace_id:
                 raise ValueError("Workspace is required")
 
-            workspace = session.query(Workspace).filter_by(slug=workspace_slug).first()
+            workspace = session.query(Workspace).filter_by(id=workspace_id).first()
             if not workspace:
                 raise ValueError("Workspace not found")
 
