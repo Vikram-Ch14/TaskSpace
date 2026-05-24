@@ -136,4 +136,8 @@ class Task(Base):
             f"title={self.title!r} "
             f"status={self.status} "
             f"priority={self.priority}>"
+            f"assigned_to={self.assigned_to} "
+            f"created_by={self.created_by} "
+            f"created_at={self.created_at} "
+            f"updated_at={self.updated_at}"
         )

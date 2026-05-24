@@ -58,12 +58,14 @@ def role_required(allowed_roles: list[str]):
         @wraps(fn)
         def decorated(*args, **kwargs):
 
-            user = getattr(g, "user", None)
+            userId = getattr(g, "user_id", None)
 
-            if not user:
+            if not userId:
                 return jsonify({"message": "Unauthorized"}), 401
+             
+            userRole = getattr(g, "user_role", None)
 
-            if user["role"] not in allowed_roles:
+            if userRole not in allowed_roles:
                 return jsonify({"message": "Forbidden"}), 403
 
             return fn(*args, **kwargs)
