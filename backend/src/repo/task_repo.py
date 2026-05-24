@@ -100,11 +100,40 @@ class TaskRepo:
             session.commit()
 
             return TaskResponseSchema.model_validate(task).model_dump(mode="json")
-        
+
     def get_user_tasks(self):
         with DBSession() as session:
             user_id = g.user_id
             workspace_id = g.workspace_id
-            tasks = session.query(Task).filter_by(created_by=user_id, workspace_id=workspace_id).all()
-            print(tasks)
-            return [TaskResponseSchema.model_validate(task).model_dump(mode="json") for task in tasks]
+            tasks = (
+                session.query(Task)
+                .filter_by(created_by=user_id, workspace_id=workspace_id)
+                .all()
+            )
+            return [
+                TaskResponseSchema.model_validate(task).model_dump(mode="json")
+                for task in tasks
+            ]
+
+    def get_all_tasks(self, data):
+        with DBSession() as session:
+            workspace_id = g.workspace_id
+            query = session.query(Task).filter_by(workspace_id=workspace_id)
+            status = data.status
+            priority = data.priority
+            assigned_to = data.assigned_to
+            page = data.page
+            per_page = data.per_page
+            if status and len(status) > 0:
+                query = query.filter(Task.status.in_(status))
+            if priority and len(priority) > 0:
+                query = query.filter(Task.priority.in_(priority))
+            if assigned_to and len(assigned_to) > 0:
+                query = query.filter(Task.assigned_to.in_(assigned_to))
+            if page and per_page:
+                query = query.limit(per_page).offset((page - 1) * per_page)
+            tasks = query.all()
+            return [
+                TaskResponseSchema.model_validate(task).model_dump(mode="json")
+                for task in tasks
+            ]

@@ -2,7 +2,7 @@ from flask import Blueprint, g, jsonify
 from middleware.auth import role_required
 from core.validators import validate
 from services.task_service import TaskService
-from schemas.task_schema import CreateTaskSchema, UpdateTaskSchema
+from schemas.task_schema import CreateTaskSchema, UpdateTaskSchema, TaskRequestSchema
 
 task_blp = Blueprint("task", __name__)
 
@@ -62,6 +62,18 @@ def update_task(taskId):
 def get_user_tasks():
     try:
         return TaskService().get_user_tasks()
+    except ValueError as e:
+        return jsonify({"message": str(e)}), 400
+
+    except Exception:
+        return jsonify({"message": "Internal server error"}), 500
+    
+@task_blp.route("/", methods=["GET"])
+@validate(TaskRequestSchema)
+def get_tasks():
+    try:
+        data = g.data
+        return TaskService().get_tasks(data)
     except ValueError as e:
         return jsonify({"message": str(e)}), 400
 
