@@ -68,12 +68,12 @@ def get_user_tasks():
     except Exception:
         return jsonify({"message": "Internal server error"}), 500
     
-@task_blp.route("/", methods=["GET"])
+@task_blp.route("/tasks", methods=["POST"])
 @validate(TaskRequestSchema)
 def get_tasks():
     try:
         data = g.data
-        return TaskService().get_tasks(data)
+        return TaskService().get_all_tasks(data)
     except ValueError as e:
         return jsonify({"message": str(e)}), 400
 

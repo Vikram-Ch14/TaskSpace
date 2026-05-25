@@ -1,7 +1,7 @@
 from database import DBSession
 from flask import g
 from models.task import Task
-from schemas.task_schema import TaskResponseSchema
+from schemas.task_schema import TaskResponseSchema, TaskListResponseSchema
 from datetime import datetime, timezone
 
 
@@ -119,11 +119,13 @@ class TaskRepo:
         with DBSession() as session:
             workspace_id = g.workspace_id
             query = session.query(Task).filter_by(workspace_id=workspace_id)
-            status = data.status
-            priority = data.priority
-            assigned_to = data.assigned_to
-            page = data.page
-            per_page = data.per_page
+
+            status = data.filters.status
+            priority = data.filters.priority
+            assigned_to = data.filters.assigned_to
+            page = data.filters.page
+            per_page = data.filters.per_page
+
             if status and len(status) > 0:
                 query = query.filter(Task.status.in_(status))
             if priority and len(priority) > 0:
@@ -132,8 +134,16 @@ class TaskRepo:
                 query = query.filter(Task.assigned_to.in_(assigned_to))
             if page and per_page:
                 query = query.limit(per_page).offset((page - 1) * per_page)
+
             tasks = query.all()
-            return [
+            count = query.count()
+            tasksList = [
                 TaskResponseSchema.model_validate(task).model_dump(mode="json")
                 for task in tasks
             ]
+            return TaskListResponseSchema(
+                tasks=tasksList,
+                total=count,
+                page=page,
+                per_page=per_page,
+            ).model_dump(mode="json")

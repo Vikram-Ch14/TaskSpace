@@ -79,11 +79,10 @@ class TaskResponseSchema(BaseModel):
 class TaskListResponseSchema(BaseModel):
     """Schema for paginated task list response."""
 
-    items: list[TaskResponseSchema]
+    tasks: list[TaskResponseSchema]
     total: int
-    page: int = 1
-    per_page: int = 20
-    has_next: bool = False
+    page: Optional[int] = None
+    per_page: Optional[int] = None
 
 
 class Filter(BaseModel):
