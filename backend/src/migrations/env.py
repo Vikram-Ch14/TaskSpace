@@ -17,6 +17,7 @@ from models.user import User
 from models.workspace import Workspace
 from models.workspace_member import WorkspaceMember
 from models.task import Task
+from models.activitylog import ActivityLog
 # When you add more models, import them here:
 # from models.task import Task
 # from models.activity_log import ActivityLog

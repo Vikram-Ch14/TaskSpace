@@ -28,11 +28,13 @@ authenticateBluePrint(users_blp, skip={"login", "registerUser"})
 authenticateBluePrint(workspace_blp)
 authenticateBluePrint(workspacemember_blp)
 authenticateBluePrint(task_blp)
+authenticateBluePrint(task_blp)
 
 app.register_blueprint(users_blp, url_prefix="/api/user")
 app.register_blueprint(workspace_blp, url_prefix="/api/workspace")
 app.register_blueprint(workspacemember_blp, url_prefix="/api/members")
 app.register_blueprint(task_blp, url_prefix="/api/task")
+
 
 
 def run_app():
