@@ -33,7 +33,7 @@ def get_taskById(taskId):
         return jsonify({"message": "Internal server error"}), 500
     
 @task_blp.route("/<taskId>", methods=["DELETE"])
-@role_required(["admin", "editor"])
+@role_required(["admin"])
 def delete_task(taskId):
     try:
         return TaskService().delete_task(taskId)
@@ -74,6 +74,17 @@ def get_tasks():
     try:
         data = g.data
         return TaskService().get_all_tasks(data)
+    except ValueError as e:
+        return jsonify({"message": str(e)}), 400
+
+    except Exception:
+        return jsonify({"message": "Internal server error"}), 500
+
+
+@task_blp.route("/dashboard", methods=["GET"])
+def get_dashboard_tasks():
+    try:
+        return TaskService().get_dashboard_tasks()
     except ValueError as e:
         return jsonify({"message": str(e)}), 400
 

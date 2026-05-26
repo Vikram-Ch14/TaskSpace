@@ -19,3 +19,6 @@ class TaskService():
     
     def get_all_tasks(self, data):
         return TaskRepo().get_all_tasks(data)
+    
+    def get_dashboard_tasks(self):
+        return TaskRepo().get_dashboard_tasks()

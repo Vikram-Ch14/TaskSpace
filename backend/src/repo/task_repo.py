@@ -1,8 +1,10 @@
+from models.workspace_member import WorkspaceMember
 from database import DBSession
 from flask import g
-from models.task import Task
+from models.task import Task, TaskStatus, Priority
 from schemas.task_schema import TaskResponseSchema, TaskListResponseSchema
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
+from sqlalchemy import func
 
 
 def utc_now() -> datetime:
@@ -147,3 +149,130 @@ class TaskRepo:
                 page=page,
                 per_page=per_page,
             ).model_dump(mode="json")
+
+    def get_dashboard_tasks(self):
+        with DBSession() as session:
+            workspace_id = g.workspace_id
+            now = datetime.now(timezone.utc)
+            week_start = now - timedelta(days=now.weekday())
+
+            week_start = week_start.replace(
+                hour=0,
+                minute=0,
+                second=0,
+                microsecond=0,
+            )
+
+            week_end = week_start + timedelta(days=7)
+
+            (
+                total_tasks,
+                completed_tasks,
+                overdue_tasks,
+                tasks_due_this_week,
+            ) = (
+                session.query(
+                    func.count(Task.id),
+                    func.count().filter(Task.status == TaskStatus.DONE.value),
+                    func.count().filter(
+                        Task.due_date.isnot(None),
+                        Task.due_date < now,
+                        Task.status != TaskStatus.DONE.value,
+                    ),
+                    func.count().filter(
+                        Task.due_date.isnot(None),
+                        Task.due_date >= week_start,
+                        Task.due_date < week_end,
+                    ),
+                )
+                .filter(Task.workspace_id == workspace_id)
+                .one()
+            )
+
+            tasks = {
+                "total_tasks": total_tasks,
+                "completed_tasks": completed_tasks,
+                "overdue_tasks": overdue_tasks,
+                "tasks_due_this_week": tasks_due_this_week,
+            }
+
+            status_counts = (
+                session.query(
+                    Task.status,
+                    func.count(Task.id),
+                )
+                .filter(Task.workspace_id == workspace_id)
+                .group_by(Task.status)
+                .all()
+            )
+
+            tasks_by_status = {
+                "todo": 0,
+                "in_progress": 0,
+                "done": 0,
+            }
+
+            for status, count in status_counts:
+                tasks_by_status[status] = count
+
+            priority_counts = (
+                session.query(
+                    Task.priority,
+                    func.count(Task.id),
+                )
+                .filter(Task.workspace_id == workspace_id)
+                .group_by(Task.priority)
+                .all()
+            )
+
+            tasks_by_priority = {
+                "low": 0,
+                "medium": 0,
+                "high": 0,
+                "highest": 0,
+            }
+
+            for priority, count in priority_counts:
+                tasks_by_priority[priority] = count
+
+            workspace_members = (
+                session.query(WorkspaceMember)
+                .filter(WorkspaceMember.workspace_id == workspace_id)
+                .all()
+            )
+
+            velocity_counts = (
+                session.query(
+                    Task.assigned_to,
+                    func.count(Task.id),
+                )
+                .filter(
+                    Task.workspace_id == workspace_id,
+                    Task.status == TaskStatus.DONE.value,
+                    Task.assigned_to.isnot(None),
+                )
+                .group_by(Task.assigned_to)
+                .all()
+            )
+
+            velocity_map = {
+                assigned_to: count for assigned_to, count in velocity_counts
+            }
+
+            velocity = []
+
+            for member in workspace_members:
+                velocity.append(
+                    {
+                        "user_id": member.user_id,
+                        "username": member.user.username,
+                        "completed_tasks": velocity_map.get(member.user_id, 0),
+                    }
+                )
+
+            return {
+                "tasks": tasks,
+                "tasks_by_status": tasks_by_status,
+                "tasks_by_priority": tasks_by_priority,
+                "velocity": velocity,
+            }
