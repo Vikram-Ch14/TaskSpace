@@ -18,7 +18,7 @@ def verify_token():
         g.user_role = payload.get("role", "user")
         g.workspace_id = payload.get("workspace_id", None)
         g.workspace = payload.get("workspace", None)
-
+        g.username = payload.get("username", None)
         return None
 
     except jwt.ExpiredSignatureError:

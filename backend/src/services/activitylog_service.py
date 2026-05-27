@@ -1,8 +1,10 @@
 from models.activitylog import ActivityLog
 import json
+from repo.activitylog_repo import ActivitylogRepo
 
 
-def ActivityService():
+class ActivityService:
+    
     def log(
         self,
         session,
@@ -22,3 +24,6 @@ def ActivityService():
         )
         session.add(activity_log)
         return activity_log
+    
+    def get_activitylog(self, taskId: str):
+        return ActivitylogRepo().get_activitylog(taskId)

@@ -91,3 +91,14 @@ class ActivityLog(Base):
             f"task={self.task_id} "
             f"at={self.created_at}>"
         )
+    
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "task_id": self.task_id,
+            "action": self.action,
+            "user_id": self.user_id,
+            "activity_metadata": self.activity_metadata,
+            "created_at": self.created_at,
+            "workspace_id": self.workspace_id
+        }

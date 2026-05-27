@@ -1,10 +1,12 @@
 from models.workspace_member import WorkspaceMember
 from database import DBSession
 from flask import g
-from models.task import Task, TaskStatus, Priority
+from models.task import Task, TaskStatus
 from schemas.task_schema import TaskResponseSchema, TaskListResponseSchema
 from datetime import datetime, timezone, timedelta
 from sqlalchemy import func
+from services.activitylog_service import ActivityService
+from models.activitylog import ActivityAction
 
 
 def utc_now() -> datetime:
@@ -44,6 +46,19 @@ class TaskRepo:
             )
             session.add(task)
             session.flush()
+
+            ActivityService().log(
+                session=session,
+                workspace_id=workspaceId,
+                user_id=userId,
+                action=ActivityAction.TASK_CREATED.value,
+                task_id=task.id,
+                metadata={
+                    "task_title": task.title,
+                    "priority": task.priority,
+                    "username": g.username,
+                },
+            )
             response = TaskResponseSchema.model_validate(task).model_dump(mode="json")
             session.commit()
 
@@ -71,6 +86,21 @@ class TaskRepo:
             )
             if not task:
                 raise ValueError("Task not found")
+            deleted_title = task.title
+            deleted_priority = task.priority
+
+            ActivityService().log(
+                session=session,
+                workspace_id=workspaceId,
+                user_id=g.user_id,
+                action=ActivityAction.TASK_DELETED.value,
+                task_id=task.id,
+                metadata={
+                    "task_title": deleted_title,
+                    "priority": deleted_priority,
+                    "username": g.username,
+                },
+            )
             session.delete(task)
             session.commit()
             return {"message": "Task deleted successfully"}
@@ -87,6 +117,10 @@ class TaskRepo:
             if not task:
                 raise ValueError("Task not found")
 
+            old_values = {
+                field: getattr(task, field) for field in ALLOWED_UPDATE_FIELDS
+            }
+
             updates = task_data.model_dump(exclude_unset=True)
 
             updates = {k: v for k, v in updates.items() if k in ALLOWED_UPDATE_FIELDS}
@@ -94,6 +128,28 @@ class TaskRepo:
             if not updates:
                 raise ValueError("No fields provided to update")
 
+            changes = {}
+            for field in ALLOWED_UPDATE_FIELDS:
+                new_value = getattr(task, field)
+                old_value = old_values.get(field)
+                if new_value != old_value:
+                    changes[field] = {
+                        "old": old_value,
+                        "new": new_value,
+                    }
+            if changes:
+                ActivityService().log(
+                    session=session,
+                    workspace_id=workspace_id,
+                    user_id=g.user_id,
+                    action=ActivityAction.TASK_UPDATED.value,
+                    task_id=task.id,
+                    metadata={
+                        "task_title": task.title,
+                        "changes": changes,
+                        "username": g.username,
+                    },
+                )
             # Apply each update dynamically
             for field, value in updates.items():
                 setattr(task, field, value)
