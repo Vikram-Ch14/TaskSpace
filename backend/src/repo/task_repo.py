@@ -4,7 +4,7 @@ from flask import g
 from models.task import Task, TaskStatus
 from schemas.task_schema import TaskResponseSchema, TaskListResponseSchema
 from datetime import datetime, timezone, timedelta
-from sqlalchemy import func
+from sqlalchemy import func, text
 from services.activitylog_service import ActivityService
 from models.activitylog import ActivityAction
 
@@ -332,3 +332,33 @@ class TaskRepo:
                 "tasks_by_priority": tasks_by_priority,
                 "velocity": velocity,
             }
+
+    def task_search(self, query):
+        sql = text("""
+            SELECT
+                tasks.id,
+                tasks.title,
+                tasks.description,
+                tasks.status,
+                tasks.priority,
+                bm25(tasks_fts, 10.0, 2.0) as rank
+            FROM tasks_fts
+            JOIN tasks
+                ON tasks.rowid = tasks_fts.rowid
+            WHERE tasks.workspace_id = :workspace_id
+            AND tasks_fts MATCH :query
+            ORDER BY rank
+            LIMIT 20;
+        """)
+        with DBSession() as session:
+            workspace_id = g.workspace_id
+            result = session.execute(
+                sql,
+                {
+                    "workspace_id": workspace_id,
+                    "query": query,
+                }
+            )
+
+            rows = result.mappings().all()
+            return [dict(row) for row in rows]

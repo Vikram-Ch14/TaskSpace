@@ -22,3 +22,6 @@ class TaskService():
     
     def get_dashboard_tasks(self):
         return TaskRepo().get_dashboard_tasks()
+    
+    def task_search(self, query):
+        return TaskRepo().task_search(query)

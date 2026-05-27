@@ -1,4 +1,4 @@
-from flask import Blueprint, g, jsonify
+from flask import Blueprint, g, jsonify, request
 from middleware.auth import role_required
 from core.validators import validate
 from services.task_service import TaskService
@@ -85,6 +85,19 @@ def get_tasks():
 def get_dashboard_tasks():
     try:
         return TaskService().get_dashboard_tasks()
+    except ValueError as e:
+        return jsonify({"message": str(e)}), 400
+
+    except Exception:
+        return jsonify({"message": "Internal server error"}), 500
+
+@task_blp.route("/search", methods=["GET"])  
+def task_search():
+    try:
+        query = request.args.get("q", "").strip()
+        if not query:
+            return jsonify({"message": "Query parameter 'q' is required"}), 400
+        return TaskService().task_search(query)
     except ValueError as e:
         return jsonify({"message": str(e)}), 400
 
