@@ -5,7 +5,7 @@ import { AppSidebar } from "@/components/sidebar/Sidebar";
 export const Layout = () => (
   <SidebarProvider>
     <AppSidebar />
-    <SidebarInset>
+    <SidebarInset className="overflow-hidden">
       <Outlet />
     </SidebarInset>
   </SidebarProvider>

@@ -1,15 +1,13 @@
 import { Header } from "@/common/Header";
 import { View } from "@/common/View";
-import { Greeting } from "./Greeting";
-import { Stats } from "./Stats";
+import { DndBoard } from "./DndBoard";
 
-export const Dashboard = () => (
+export const Board = () => (
   <div className="h-screen w-full overflow-auto">
     <Header />
     <View>
       <div className="flex flex-1 flex-col gap-4 bg-[#F8FAFC] p-4">
-        <Greeting />
-        <Stats/>
+       <DndBoard />
       </div>
     </View>
   </div>
