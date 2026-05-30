@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   IconChartBar,
   IconDashboard,
@@ -23,56 +24,69 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
+import { routes } from "@/routes/routes";
 import { Command } from "lucide-react";
+import { RouteName } from "@/routes/types";
+import { getRoute } from "@/routes/utils";
 
 const data = {
-  user: {
-    name: "shadcn",
-    email: "m@example.com",
-    avatar: "/avatars/shadcn.jpg",
-  },
   navMain: [
     {
       title: "Dashboard",
-      url: "#",
+      url: "/",
       icon: IconDashboard,
+      routeName: RouteName.Dashboard,
     },
     {
       title: "Tasks",
-      url: "#",
+      url: "tasks",
       icon: IconListDetails,
+      routeName: RouteName.Tasks,
     },
     {
       title: "Board",
-      url: "#",
+      url: "board",
       icon: IconChartBar,
+      routeName: RouteName.Board,
     },
     {
       title: "Activity",
-      url: "#",
+      url: "activity",
       icon: IconFolder,
+      routeName: RouteName.Activity,
     },
     {
       title: "Members",
-      url: "#",
+      url: "members",
       icon: IconUsers,
+      routeName: RouteName.Members,
     },
   ],
   navClouds: [
     {
       title: "Profile",
-      url: "#",
+      url: "profile",
       icon: IconUser,
+      routeName: RouteName.Profile,
     },
     {
       title: "Logout",
-      url: "#",
+      url: "logout",
       icon: IconLogout,
+      routeName: RouteName.Logout,
     },
   ],
 };
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  const location = useLocation();
+  const navigateTo = useNavigate();
+  const route = getRoute(location.pathname, routes);
+
+  const onClick = (url: string) => {
+    navigateTo(url);
+  };
+
   return (
     <Sidebar
       collapsible="offcanvas"
@@ -82,8 +96,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton size="lg" asChild>
-              <a href="#">
+            <SidebarMenuButton size="lg" asChild onClick={() => onClick("/")} className="cursor-pointer">
+              <div>
                 <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
                   <Command className="size-4" />
                 </div>
@@ -91,7 +105,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                   <span className="truncate font-medium">Task Space</span>
                   <span className="truncate text-xs">Enterprise</span>
                 </div>
-              </a>
+              </div>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
@@ -103,7 +117,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             <SidebarMenu>
               {data.navMain.map((item) => (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton tooltip={item.title}>
+                  <SidebarMenuButton
+                    tooltip={item.title}
+                    isActive={item.routeName === route?.name}
+                    onClick={() => onClick(item.url)}
+                  >
                     {item.icon && <item.icon />}
                     <span>{item.title}</span>
                   </SidebarMenuButton>
