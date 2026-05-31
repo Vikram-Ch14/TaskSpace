@@ -8,6 +8,7 @@ export enum RouteName {
   Members,
   Profile,
   Logout,
+  Login
 }
 
 export interface RouteProps {

@@ -5,6 +5,7 @@ import { ProtectedRoute } from "./ProtectedRoute";
 import { RouteName, type RouteProps } from "./types";
 import { Board } from "@/pages/board/Board";
 import { Activity } from "@/pages/activity/Activity";
+import { Login } from "@/pages/Login/Login";
 
 export const routes: RouteProps[] = [
   {
@@ -42,5 +43,11 @@ export const routes: RouteProps[] = [
         element: <Activity />,
       },
     ],
+  },
+  {
+    id: "login",
+    name: RouteName.Login,
+    path: "/accounts/login",
+    element: <Login />,
   },
 ];
