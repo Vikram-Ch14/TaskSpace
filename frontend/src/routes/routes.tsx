@@ -6,6 +6,7 @@ import { RouteName, type RouteProps } from "./types";
 import { Board } from "@/pages/board/Board";
 import { Activity } from "@/pages/activity/Activity";
 import { Login } from "@/pages/Login/Login";
+import { Signup } from "@/pages/Signup/Signup";
 
 export const routes: RouteProps[] = [
   {
@@ -50,4 +51,10 @@ export const routes: RouteProps[] = [
     path: "/accounts/login",
     element: <Login />,
   },
+  {
+    id: "signup",
+    name: RouteName.Signup,
+    path: "/accounts/signup",
+    element: <Signup />,
+  }
 ];
