@@ -1,9 +1,9 @@
 import type { PropsWithChildren } from "react";
-import { Navigate, useLocation } from "react-router-dom";
+import { Navigate } from "react-router-dom";
+import { useAuthCtx } from "@/context/AuthContext";
 
 export const ProtectedRoute = ({ children }: PropsWithChildren) => {
-  const isAuthenticated = true;
-  const location = useLocation();
+  const { isAuthenticated } = useAuthCtx();
 
   return isAuthenticated ? children : <Navigate to="/accounts/login" />;
 };

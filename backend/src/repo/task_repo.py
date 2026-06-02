@@ -300,11 +300,13 @@ class TaskRepo:
             velocity_counts = (
                 session.query(
                     Task.assigned_to,
-                    func.count(Task.id),
+                    func.count(Task.id).label("total_tasks"),
+                    func.count(Task.id)
+                    .filter(Task.status == TaskStatus.DONE.value)
+                    .label("completed_tasks"),
                 )
                 .filter(
                     Task.workspace_id == workspace_id,
-                    Task.status == TaskStatus.DONE.value,
                     Task.assigned_to.isnot(None),
                 )
                 .group_by(Task.assigned_to)
@@ -312,17 +314,23 @@ class TaskRepo:
             )
 
             velocity_map = {
-                assigned_to: count for assigned_to, count in velocity_counts
+                assigned_to: {
+                    "total_tasks": total_tasks,
+                    "completed_tasks": completed_tasks,
+                }
+                for assigned_to, total_tasks, completed_tasks in velocity_counts
             }
 
             velocity = []
 
             for member in workspace_members:
+                vmap = velocity_map.get(member.user_id, {})
                 velocity.append(
                     {
                         "user_id": member.user_id,
                         "username": member.user.username,
-                        "completed_tasks": velocity_map.get(member.user_id, 0),
+                        "completed_tasks": vmap.get("completed_tasks", 0),
+                        "total_tasks": vmap.get("total_tasks", 0),
                     }
                 )
 
@@ -357,7 +365,7 @@ class TaskRepo:
                 {
                     "workspace_id": workspace_id,
                     "query": query,
-                }
+                },
             )
 
             rows = result.mappings().all()

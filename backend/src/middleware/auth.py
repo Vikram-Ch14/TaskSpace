@@ -39,6 +39,8 @@ def authenticateBluePrint(blueprint: Blueprint, skip: set[str] | None = None):
 
     @blueprint.before_request
     def _authenticate():
+        if request.method == "OPTIONS":
+            return None
         endpoint_name = (request.endpoint or "").split(".")[-1]
 
         if endpoint_name in skip:

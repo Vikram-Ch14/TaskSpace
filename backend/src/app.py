@@ -17,9 +17,9 @@ CORS(
     app,
     resources={
         r"/*": {
-            "origins": "*",
+            "origins": ["http://localhost:5173"],
             "methods": ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-            "allow_headers": "*",
+            "allow_headers": ["Content-Type", "Authorization"],
         }
     },
     supports_credentials=True,
