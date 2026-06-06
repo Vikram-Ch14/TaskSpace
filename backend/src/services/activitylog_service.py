@@ -27,3 +27,6 @@ class ActivityService:
     
     def get_activitylog(self, taskId: str):
         return ActivitylogRepo().get_activitylog(taskId)
+    
+    def get_activitylogs(self):
+        return ActivitylogRepo().get_activitylogs()

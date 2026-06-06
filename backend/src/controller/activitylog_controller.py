@@ -9,3 +9,7 @@ activitylog_blp = Blueprint("activitylog", __name__)
 def get_activitylog(taskId):
     return ActivityService().get_activitylog(taskId)
     
+@activitylog_blp.route("/", methods=["GET"])
+@role_required(["admin", "editor"])
+def get_logs():
+    return ActivityService().get_activitylogs()

@@ -47,6 +47,7 @@ export type VelocityItem = {
   name: string;
   value: number;
   count: number;
+  percentage: number;
 };
 
 export type DashboardState = {

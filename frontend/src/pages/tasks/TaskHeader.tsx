@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
-import { Plus } from "lucide-react";
+import { CreateTaskDialog } from "./CreateTaskDialog";
 
 export const TasksHeader = () => {
   return (
@@ -29,13 +29,7 @@ export const TasksHeader = () => {
           </Button>
         </ButtonGroup>
 
-        <Button
-          variant="secondary"
-          className="h-7 flex items-center gap-1 border border-[--sidebar-border] px-2 text-xs font-medium mx-4 bg-black text-white hover:bg-black hover:text-white"
-        >
-          <Plus />
-          New Task
-        </Button>
+        <CreateTaskDialog />
       </div>
     </div>
   );

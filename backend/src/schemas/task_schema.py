@@ -54,12 +54,13 @@ class UpdateTaskSchema(BaseModel):
 # RESPONSE SCHEMAS (format outgoing data to client)
 
 
+class AssigneeSchema(BaseModel):
+    id: str
+    username: str
+
+    model_config = ConfigDict(from_attributes=True)
+
 class TaskResponseSchema(BaseModel):
-    """Schema for task data returned to client.
-
-    Includes server-generated fields (id, timestamps).
-    """
-
     id: str
     workspace_id: str
     title: str
@@ -67,12 +68,13 @@ class TaskResponseSchema(BaseModel):
     status: str
     priority: str
     due_date: Optional[datetime] = None
-    assigned_to: Optional[str] = None
+
+    assignee: Optional[AssigneeSchema] = None
+
     created_by: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 
-    # Allow Pydantic to read directly from SQLAlchemy ORM objects
     model_config = ConfigDict(from_attributes=True)
 
 

@@ -1,127 +1,137 @@
-import { Plus } from "lucide-react";
-
+import { useEffect, useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { KanbanColumnSkeleton } from "./BoardColumnSkeleton";
+import { getTasks } from "@/api/taskService/taskService";
+import type { TaskResponse, Tasks, TaskStatus } from "@/api/taskService/types";
+import type { TaskCardData } from "../tasks/types";
+import { priorityStyles } from "./constants";
+import { avatarColors } from "../tasks/constants";
+import { Plus } from "lucide-react";
 
-const columns = [
-  {
-    title: "Todo",
-    count: 12,
-    tasks: [
-      {
-        title: "Refactor authentication middleware",
-        description: "Split JWT decoding from role enforcement",
-        priority: "High",
-        due: "May 22",
-        priorityClass:
-          "bg-amber-100 text-amber-700 border-amber-200",
-      },
-      {
-        title: "Set up FTS5 trigger sync",
-        description: "Ensure inserts and updates stay in sync",
-        priority: "Highest",
-        due: "May 30",
-        priorityClass:
-          "bg-red-100 text-red-700 border-red-200",
-      },
-      {
-        title: "Refactor authentication middleware",
-        description: "Split JWT decoding from role enforcement",
-        priority: "High",
-        due: "May 22",
-        priorityClass:
-          "bg-amber-100 text-amber-700 border-amber-200",
-      },
-      {
-        title: "Refactor authentication middleware",
-        description: "Split JWT decoding from role enforcement",
-        priority: "High",
-        due: "May 22",
-        priorityClass:
-          "bg-amber-100 text-amber-700 border-amber-200",
-      },
-      {
-        title: "Refactor authentication middleware",
-        description: "Split JWT decoding from role enforcement",
-        priority: "High",
-        due: "May 22",
-        priorityClass:
-          "bg-amber-100 text-amber-700 border-amber-200",
-      },
-      {
-        title: "Refactor authentication middleware",
-        description: "Split JWT decoding from role enforcement",
-        priority: "High",
-        due: "May 22",
-        priorityClass:
-          "bg-amber-100 text-amber-700 border-amber-200",
-      },
-      {
-        title: "Refactor authentication middleware",
-        description: "Split JWT decoding from role enforcement",
-        priority: "High",
-        due: "May 22",
-        priorityClass:
-          "bg-amber-100 text-amber-700 border-amber-200",
-      },
-      {
-        title: "Refactor authentication middleware",
-        description: "Split JWT decoding from role enforcement",
-        priority: "High",
-        due: "May 22",
-        priorityClass:
-          "bg-amber-100 text-amber-700 border-amber-200",
-      },
-      {
-        title: "Refactor authentication middleware",
-        description: "Split JWT decoding from role enforcement",
-        priority: "High",
-        due: "May 22",
-        priorityClass:
-          "bg-amber-100 text-amber-700 border-amber-200",
-      },
-    ],
-  },
-  {
-    title: "In Progress",
-    count: 12,
-    tasks: [
-      {
-        title: "Fix login bug on Safari",
-        description: "Cookie not persisting after refresh",
-        priority: "Highest",
-        due: "May 28",
-        priorityClass:
-          "bg-red-100 text-red-700 border-red-200",
-      },
-    ],
-  },
-  {
-    title: "Done",
-    count: 23,
-    tasks: [
-      {
-        title: "Set up Alembic migrations",
-        description: "",
-        priority: "Done",
-        due: "",
-        priorityClass:
-          "bg-emerald-100 text-emerald-700 border-emerald-200",
-      },
-    ],
-  },
-];
+type KanbanColumn = {
+  id: TaskStatus;
+  title: string;
+  count: number;
+  tasks: TaskCardData[];
+};
 
 export const DndBoard = () => {
+  const [tasks, setTasks] = useState<TaskCardData[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const getAvatarColor = (id: string) => {
+    const hash = id
+      .split("")
+      .reduce((acc, char) => acc + char.charCodeAt(0), 0);
+
+    return avatarColors[hash % avatarColors.length];
+  };
+
+  const formatTask = (task: TaskResponse): TaskCardData => {
+    const dueDate = task.due_date ? new Date(task.due_date) : null;
+
+    return {
+      id: task.id,
+
+      code: `TS-${task.id.slice(0, 4).toUpperCase()}`,
+
+      title: task.title,
+
+      description: task.description ?? "",
+
+      priority: task.priority,
+
+      status: task.status,
+
+      dueDate: dueDate
+        ? dueDate.toLocaleDateString("en-US", {
+            month: "short",
+            day: "numeric",
+          })
+        : "-",
+
+      isOverdue: !!dueDate && task.status !== "done" && dueDate < new Date(),
+
+      assignee: task.assignee
+        ? {
+            initial: task.assignee.username.charAt(0).toUpperCase(),
+            name: task.assignee.username,
+            color: getAvatarColor(task.assignee.id),
+          }
+        : null,
+    };
+  };
+
+  const columns = useMemo<KanbanColumn[]>(() => {
+    const todo = tasks.filter((task) => task.status === "todo");
+
+    const inProgress = tasks.filter((task) => task.status === "in_progress");
+
+    const done = tasks.filter((task) => task.status === "done");
+
+    return [
+      {
+        id: "todo",
+        title: "Todo",
+        count: todo.length,
+        tasks: todo,
+      },
+      {
+        id: "in_progress",
+        title: "In Progress",
+        count: inProgress.length,
+        tasks: inProgress,
+      },
+      {
+        id: "done",
+        title: "Done",
+        count: done.length,
+        tasks: done,
+      },
+    ];
+  }, [tasks]);
+
+  useEffect(() => {
+    const fetchTasks = async () => {
+      try {
+        setIsLoading(true);
+        const payload = {
+          filters: {
+            page: 1,
+            per_page: 10,
+          },
+        };
+
+        const response: Tasks = await getTasks(payload);
+
+        setTasks(response.tasks.map(formatTask));
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchTasks();
+  }, []);
+
+  if (isLoading) {
+    return (
+      <div className="grid h-full grid-cols-1 gap-4 xl:grid-cols-3">
+        {Array.from({ length: 3 }).map((_, index) => (
+          <KanbanColumnSkeleton key={index} />
+        ))}
+      </div>
+    );
+  }
+
   return (
     <div className="grid h-full grid-cols-1 gap-4 xl:grid-cols-3">
       {columns.map((column) => (
         <div
-          key={column.title}
+          key={column.id}
           className="rounded-xl border border-slate-200 bg-slate-50 p-3"
         >
-          {/* Header */}
           <div className="mb-3 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <div className="h-2 w-2 rounded-full bg-slate-400" />
@@ -137,44 +147,38 @@ export const DndBoard = () => {
           </div>
 
           <div className="space-y-2">
-            {column.tasks.map((task) => (
-              <Card
-                key={task.title}
-                className="rounded-md border border-slate-200 bg-white p-2 shadow-none"
-              >
-                <h3 className="text-sm font-medium leading-snug text-slate-900">
-                  {task.title}
-                </h3>
+            {column.tasks.map((task) => {
+              const priority = priorityStyles[task.priority];
 
-                {task.description && (
-                  <p className="mt-1 text-xs leading-relaxed text-slate-500">
-                    {task.description}
-                  </p>
-                )}
+              return (
+                <Card
+                  key={task.id}
+                  className="rounded-md border border-slate-200 bg-white p-2 shadow-none"
+                >
+                  <h3 className="text-sm font-medium leading-snug text-slate-900">
+                    {task.title}
+                  </h3>
 
-                <div className="mt-2 flex items-center justify-between">
-                  <Badge
-                    className={`rounded-md border px-2 py-0.5 text-xs font-medium ${task.priorityClass}`}
-                  >
-                    {task.priority}
-                  </Badge>
-
-                  {task.due && (
-                    <span className="text-xs text-slate-400">
-                      {task.due}
-                    </span>
+                  {task.description && (
+                    <p className="mt-1 text-xs leading-relaxed text-slate-500">
+                      {task.description}
+                    </p>
                   )}
-                </div>
-              </Card>
-            ))}
 
-            <Button
-              variant="ghost"
-              className="h-9 w-full justify-center rounded-xl border border-dashed border-slate-300 text-xs text-slate-500 hover:bg-slate-100"
-            >
-              <Plus className="mr-1 h-3.5 w-3.5" />
-              Add task
-            </Button>
+                  <div className="mt-2 flex items-center justify-between">
+                    <Badge
+                      className={`rounded-md border px-2 py-0.5 text-xs font-medium ${priority.className}`}
+                    >
+                      {priority.label}
+                    </Badge>
+
+                    <span className="text-xs text-slate-400">
+                      {task.dueDate}
+                    </span>
+                  </div>
+                </Card>
+              );
+            })}
           </div>
         </div>
       ))}

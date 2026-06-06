@@ -3,77 +3,81 @@ import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Flag, SortAscIcon, User } from "lucide-react";
 import { TaskCard } from "./TaskCard";
-
-const tasks = [
-  {
-    id: "TS-042",
-    code: "TS-042",
-    title: "Fix login bug on Safari",
-    description: "Cookie not persisting after refresh on Safari 14+",
-    priority: "urgent",
-    status: "in_progress",
-    dueDate: "May 28",
-    isOverdue: false,
-    assignee: { initial: "B", name: "Bob", color: "bg-emerald-600" },
-  },
-  {
-    id: "TS-041",
-    code: "TS-041",
-    title: "Refactor authentication middleware",
-    description: "Split JWT decoding from role enforcement logic",
-    priority: "urgent",
-    status: "todo",
-    dueDate: "May 22",
-    isOverdue: true,
-    assignee: { initial: "A", name: "Alice", color: "bg-violet-600" },
-  },
-  {
-    id: "TS-040",
-    code: "TS-040",
-    title: "Add activity log API endpoint",
-    description: "Paginated feed with action filters",
-    priority: "high",
-    status: "in_progress",
-    dueDate: "Jun 1",
-    isOverdue: false,
-    assignee: { initial: "A", name: "Alice", color: "bg-violet-600" },
-  },
-  {
-    id: "TS-039",
-    code: "TS-039",
-    title: "Deploy backend to Render",
-    description: "Persistent disk setup and environment variables",
-    priority: "medium",
-    status: "in_progress",
-    dueDate: "Jun 5",
-    isOverdue: false,
-    assignee: { initial: "C", name: "Carol", color: "bg-sky-600" },
-  },
-  {
-    id: "TS-038",
-    code: "TS-038",
-    title: "Write seed script for demo data",
-    description: "5 demo users, 20 tasks, activity history",
-    priority: "medium",
-    status: "todo",
-    dueDate: "Jun 2",
-    isOverdue: false,
-    assignee: { initial: "C", name: "Carol", color: "bg-sky-600" },
-  },
-  {
-    id: "TS-037",
-    code: "TS-037",
-    title: "Set up Alembic migrations",
-    description: "Init folder, env.py, first revision",
-    priority: "low",
-    status: "done",
-    dueDate: "May 20",
-    isOverdue: false,
-    assignee: { initial: "A", name: "Alice", color: "bg-violet-600" },
-  },
-];
+import { useEffect, useState } from "react";
+import { getTasks } from "@/api/taskService/taskService";
+import type { TaskCardData } from "./types";
+import type { TaskResponse, Tasks } from "@/api/taskService/types";
+import { avatarColors } from "./constants";
+import { TaskCardSkeleton } from "./TaskSkeleton";
 
 export const TaskList = () => {
+  const [tasks, setTasks] = useState<TaskCardData[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const getAvatarColor = (id: string) => {
+    const hash = id
+      .split("")
+      .reduce((acc, char) => acc + char.charCodeAt(0), 0);
+
+    return avatarColors[hash % avatarColors.length];
+  };
+
+  const formatTask = (task: TaskResponse): TaskCardData => {
+    const dueDate = task.due_date ? new Date(task.due_date) : null;
+
+    return {
+      id: task.id,
+
+      code: `TS-${task.id.slice(0, 4).toUpperCase()}`,
+
+      title: task.title,
+
+      description: task.description ?? "",
+
+      priority: task.priority,
+
+      status: task.status,
+
+      dueDate: dueDate
+        ? dueDate.toLocaleDateString("en-US", {
+            month: "short",
+            day: "numeric",
+          })
+        : "-",
+
+      isOverdue: !!dueDate && task.status !== "done" && dueDate < new Date(),
+
+      assignee: task.assignee
+        ? {
+            initial: task.assignee.username.charAt(0).toUpperCase(),
+            name: task.assignee.username,
+            color: getAvatarColor(task.assignee.id),
+          }
+        : null,
+    };
+  };
+
+  useEffect(() => {
+    const fetchTasks = async () => {
+      try {
+        setIsLoading(true);
+        const payload = {
+          filters: {
+            page: 1,
+            per_page: 10,
+          },
+        };
+
+        const response: Tasks = await getTasks(payload);
+
+        setTasks(response.tasks.map(formatTask));
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchTasks();
+  }, []);
   return (
     <div className="flex flex-col flex-1 gap-4">
       <div className="flex items-start gap-4 p-4 bg-[#fafafa] border border-[--sidebar-border] rounded-md">
@@ -141,10 +145,12 @@ export const TaskList = () => {
         </div>
       </div>
       <div>
-       <div className="grid grid-cols-2 gap-2.5 md:grid-cols-2">
-          {tasks.map((task) => (
-            <TaskCard key={task.id} task={task} />
-          ))}
+        <div className="grid grid-cols-2 gap-2.5 md:grid-cols-2">
+          {isLoading
+            ? Array.from({ length: 4 }).map((_, index) => (
+                <TaskCardSkeleton key={index} />
+              ))
+            : tasks.map((task) => <TaskCard key={task.id} task={task} />)}
         </div>
       </div>
     </div>

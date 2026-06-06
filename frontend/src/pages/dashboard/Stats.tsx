@@ -1,6 +1,5 @@
 import { getMetrics } from "@/api/taskService/taskService";
 import { Card, CardContent } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
 import { Activity, AlertCircle, CheckCircle2, Clock3 } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { DashboardState } from "./types";
@@ -123,7 +122,10 @@ export const Stats = () => {
             data.velocity?.slice(0, 5).map((item) => ({
               name: item.username,
               value: item.completed_tasks,
-              count: item.completed_tasks,
+              count: item.total_tasks,
+              percentage: Math.round(
+                (item.completed_tasks / item.total_tasks) * 100,
+              ),
             })) || [],
         });
       } catch (error) {
@@ -288,10 +290,14 @@ export const Stats = () => {
                           {item.name}
                         </span>
 
-                        <Progress
-                          value={item.value}
-                          className="h-2 bg-slate-400"
-                        />
+                        <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+                          <div
+                            className={`h-full rounded-full bg-blue-500`}
+                            style={{
+                              width: `${item.percentage}%`,
+                            }}
+                          />
+                        </div>
 
                         <span className="text-right text-sm font-medium text-slate-900">
                           {item.count}
