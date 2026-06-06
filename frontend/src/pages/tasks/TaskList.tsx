@@ -9,10 +9,24 @@ import type { TaskCardData } from "./types";
 import type { TaskResponse, Tasks } from "@/api/taskService/types";
 import { avatarColors } from "./constants";
 import { TaskCardSkeleton } from "./TaskSkeleton";
+import { TaskDetailsDialog } from "./TaskDetailsDialog";
+import { toast } from "sonner";
+import { getMembers } from "@/api/memberService/memberService";
+
+export interface UserOption {
+  label: string;
+  value: string;
+}
+interface Member {
+  id: string;
+  username: string;
+}
 
 export const TaskList = () => {
   const [tasks, setTasks] = useState<TaskCardData[]>([]);
+  const [selectedTask, setSelectedTask] = useState<TaskCardData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [users, setUsers] = useState<UserOption[]>([]);
 
   const getAvatarColor = (id: string) => {
     const hash = id
@@ -52,6 +66,7 @@ export const TaskList = () => {
             initial: task.assignee.username.charAt(0).toUpperCase(),
             name: task.assignee.username,
             color: getAvatarColor(task.assignee.id),
+            userId: task.assignee.id,
           }
         : null,
     };
@@ -76,7 +91,23 @@ export const TaskList = () => {
       }
     };
 
+    const fetchMembers = async () => {
+      try {
+        const response: Member[] = await getMembers();
+
+        const formattedUsers = response.map((member) => ({
+          label: member.username,
+          value: member.id,
+        }));
+
+        setUsers(formattedUsers);
+      } catch {
+        toast.error("Failed to load members");
+      }
+    };
+
     fetchTasks();
+    fetchMembers();
   }, []);
   return (
     <div className="flex flex-col flex-1 gap-4">
@@ -150,9 +181,26 @@ export const TaskList = () => {
             ? Array.from({ length: 4 }).map((_, index) => (
                 <TaskCardSkeleton key={index} />
               ))
-            : tasks.map((task) => <TaskCard key={task.id} task={task} />)}
+            : tasks.map((task) => (
+                <TaskCard
+                  key={task.id}
+                  task={task}
+                  onClick={() => setSelectedTask(task)}
+                />
+              ))}
         </div>
       </div>
+
+      <TaskDetailsDialog
+        task={selectedTask}
+        open={!!selectedTask}
+        onOpenChange={(open) => {
+          if (!open) {
+            setSelectedTask(null);
+          }
+        }}
+        users={users}
+      />
     </div>
   );
 };

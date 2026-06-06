@@ -13,5 +13,6 @@ export interface TaskCardData {
     initial: string;
     name: string;
     color: string;
+    userId : string
   } | null;
 }

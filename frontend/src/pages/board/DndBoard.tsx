@@ -9,6 +9,9 @@ import type { TaskCardData } from "../tasks/types";
 import { priorityStyles } from "./constants";
 import { avatarColors } from "../tasks/constants";
 import { Plus } from "lucide-react";
+import { TaskDetailsDialog } from "../tasks/TaskDetailsDialog";
+import { getMembers } from "@/api/memberService/memberService";
+import { toast } from "sonner";
 
 type KanbanColumn = {
   id: TaskStatus;
@@ -17,8 +20,20 @@ type KanbanColumn = {
   tasks: TaskCardData[];
 };
 
+export interface UserOption {
+  label: string;
+  value: string;
+}
+
+interface Member {
+  id: string;
+  username: string;
+}
+
 export const DndBoard = () => {
   const [tasks, setTasks] = useState<TaskCardData[]>([]);
+  const [selectedTask, setSelectedTask] = useState<TaskCardData | null>(null);
+  const [users, setUsers] = useState<UserOption[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
   const getAvatarColor = (id: string) => {
@@ -59,6 +74,7 @@ export const DndBoard = () => {
             initial: task.assignee.username.charAt(0).toUpperCase(),
             name: task.assignee.username,
             color: getAvatarColor(task.assignee.id),
+            userId: task.assignee.id,
           }
         : null,
     };
@@ -112,7 +128,23 @@ export const DndBoard = () => {
       }
     };
 
+    const fetchMembers = async () => {
+      try {
+        const response: Member[] = await getMembers();
+
+        const formattedUsers = response.map((member) => ({
+          label: member.username,
+          value: member.id,
+        }));
+
+        setUsers(formattedUsers);
+      } catch {
+        toast.error("Failed to load members");
+      }
+    };
+
     fetchTasks();
+    fetchMembers();
   }, []);
 
   if (isLoading) {
@@ -153,7 +185,8 @@ export const DndBoard = () => {
               return (
                 <Card
                   key={task.id}
-                  className="rounded-md border border-slate-200 bg-white p-2 shadow-none"
+                  className="rounded-md border border-slate-200 bg-white p-2 shadow-none cursor-pointer"
+                  onClick={() => setSelectedTask(task)}
                 >
                   <h3 className="text-sm font-medium leading-snug text-slate-900">
                     {task.title}
@@ -182,6 +215,16 @@ export const DndBoard = () => {
           </div>
         </div>
       ))}
+      <TaskDetailsDialog
+        task={selectedTask}
+        open={!!selectedTask}
+        onOpenChange={(open) => {
+          if (!open) {
+            setSelectedTask(null);
+          }
+        }}
+        users={users}
+      />
     </div>
   );
 };

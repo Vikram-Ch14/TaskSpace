@@ -4,9 +4,10 @@ import type { TaskCardData } from "./types";
 
 type TaskCardProps = {
   task: TaskCardData;
+  onClick: () => void;
 };
 
-export const TaskCard = ({ task }: TaskCardProps) => {
+export const TaskCard = ({ task, onClick }: TaskCardProps) => {
   const priority = priorityStyles[task.priority];
   const status = statusStyles[task.status];
   const isDone = task.status === "done";
@@ -16,6 +17,7 @@ export const TaskCard = ({ task }: TaskCardProps) => {
       className={`flex flex-col gap-2.5 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 transition-colors hover:border-slate-300 ${
         isDone ? "opacity-75" : ""
       }`}
+      onClick={onClick}
     >
       <div className="flex items-center justify-between">
         <span

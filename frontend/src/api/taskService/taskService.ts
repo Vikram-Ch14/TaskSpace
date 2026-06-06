@@ -12,6 +12,8 @@ const getTasksUrl = () => `${TaskService.base}/tasks`;
 
 const createTaskUrl = () => `${TaskService.base}/create`;
 
+const updateTaskUrl = (taskId: string) => `${TaskService.base}/${taskId}`;
+
 export const getMetrics = async (): Promise<TaskStats> => {
   const response = await axiosInstance.get<TaskStats>(getMetricsUrl());
   return response.data;
@@ -26,3 +28,8 @@ export const createTask = async (payload: Object) => {
   const response = await axiosInstance.post(createTaskUrl(), payload);
   return response.data;
 };
+
+export const updateTask = async (taskId: string, payload: Object) => {
+  const response = await axiosInstance.put(updateTaskUrl(taskId), payload);
+  return response.data;
+}
