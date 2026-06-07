@@ -1,9 +1,9 @@
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Flag, SortAscIcon, User } from "lucide-react";
+import { ChevronDown, Flag, SortAscIcon, User } from "lucide-react";
 import { TaskCard } from "./TaskCard";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { getTasks } from "@/api/taskService/taskService";
 import type { TaskCardData } from "./types";
 import type { TaskResponse, Tasks } from "@/api/taskService/types";
@@ -12,6 +12,19 @@ import { TaskCardSkeleton } from "./TaskSkeleton";
 import { TaskDetailsDialog } from "./TaskDetailsDialog";
 import { toast } from "sonner";
 import { getMembers } from "@/api/memberService/memberService";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+
+const priorityOptions = [
+  { label: "Low", value: "low" },
+  { label: "Medium", value: "medium" },
+  { label: "High", value: "high" },
+  { label: "Highest", value: "highest" },
+];
 
 export interface UserOption {
   label: string;
@@ -22,11 +35,25 @@ interface Member {
   username: string;
 }
 
+interface TaskFilter {
+  todo: boolean;
+  in_progress: boolean;
+  done: boolean;
+  priority: string;
+}
+
 export const TaskList = () => {
   const [tasks, setTasks] = useState<TaskCardData[]>([]);
   const [selectedTask, setSelectedTask] = useState<TaskCardData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [users, setUsers] = useState<UserOption[]>([]);
+  const [taskFilters, setTaskFilters] = useState<TaskFilter>({
+    todo: false,
+    in_progress: false,
+    done: false,
+    priority: "",
+  });
+  const tasksListRef = useRef<TaskCardData[]>([]);
 
   const getAvatarColor = (id: string) => {
     const hash = id
@@ -72,6 +99,33 @@ export const TaskList = () => {
     };
   };
 
+  const onFilterChange = (key: string, value: boolean | string) => {
+    const updatedFilters = { ...taskFilters, [key]: value };
+    setTaskFilters(updatedFilters);
+
+    const filteredTasks = tasksListRef.current.filter((task) => {
+      console.log(task.priority, updatedFilters.priority);
+      if (updatedFilters.todo === true && task.status === "todo") return true;
+      if (updatedFilters.in_progress === true && task.status === "in_progress")
+        return true;
+      if (updatedFilters.done === true && task.status === "done") return true;
+      if(updatedFilters.priority === "low" && task.priority === "low") return true;
+      if(updatedFilters.priority === "medium" && task.priority === "medium") return true;
+      if(updatedFilters.priority === "high" && task.priority === "high") return true;
+      if(updatedFilters.priority === "highest" && task.priority === "highest") return true;
+      if (
+        updatedFilters.todo === false &&
+        updatedFilters.in_progress === false &&
+        updatedFilters.done === false &&
+        updatedFilters.priority === ""
+      )
+        return true;
+      return false;
+    });
+
+    setTasks(filteredTasks);
+  };
+
   useEffect(() => {
     const fetchTasks = async () => {
       try {
@@ -84,8 +138,12 @@ export const TaskList = () => {
         };
 
         const response: Tasks = await getTasks(payload);
+        const formattedTasks = response.tasks.map(formatTask);
 
-        setTasks(response.tasks.map(formatTask));
+        setTasks(formattedTasks);
+        tasksListRef.current = formattedTasks;
+      } catch {
+        toast.error("Failed to load tasks");
       } finally {
         setIsLoading(false);
       }
@@ -124,39 +182,60 @@ export const TaskList = () => {
         </div>
         <div className="flex items-center gap-4">
           <Button
-            variant="outline"
-            className="h-7 flex items-center gap-1 border border-[--sidebar-border] px-4 text-xs font-medium  bg-black text-white hover:bg-black hover:text-white rounded-md"
-          >
-            All
-          </Button>
-          <Button
             variant="secondary"
-            className="h-7 flex items-center gap-1 border border-[--sidebar-border] px-4 text-xs font-medium bg-[#f5f4ed] rounded-md"
+            className={`h-7 flex items-center gap-1 border border-[--sidebar-border] px-4 text-xs font-medium ${taskFilters.todo ? "bg-black text-white hover:bg-black hover:text-white" : "bg-[#f5f4ed]"} rounded-md  `}
+            onClick={() => onFilterChange("todo", !taskFilters.todo)}
           >
             Todo
           </Button>
 
           <Button
             variant="secondary"
-            className="h-7 flex items-center gap-1 border border-[--sidebar-border] px-4 text-xs font-medium bg-[#f5f4ed] rounded-md"
+            className={`h-7 flex items-center gap-1 border border-[--sidebar-border] px-4 text-xs font-medium ${taskFilters.in_progress ? "bg-black text-white hover:bg-black hover:text-white" : "bg-[#f5f4ed]"} rounded-md`}
+            onClick={() =>
+              onFilterChange("in_progress", !taskFilters.in_progress)
+            }
           >
             In Progress
           </Button>
 
           <Button
             variant="secondary"
-            className="h-7 flex items-center gap-1 border border-[--sidebar-border] px-4 text-xs font-medium bg-[#f5f4ed] rounded-md"
+            className={`h-7 flex items-center gap-1 border border-[--sidebar-border] px-4 text-xs font-medium ${taskFilters.done ? "bg-black text-white hover:bg-black hover:text-white" : "bg-[#f5f4ed]"}  rounded-md`}
+            onClick={() => onFilterChange("done", !taskFilters.done)}
           >
             Done
           </Button>
 
-          <Button
-            variant="secondary"
-            className="h-7 flex items-center gap-1 border border-[--sidebar-border] px-4 text-xs font-medium rounded-md"
-          >
-            <Flag />
-            Priority
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="secondary"
+                className="h-7 gap-1 rounded-md border border-[--sidebar-border] px-4 text-xs font-medium"
+              >
+                <Flag className="h-3.5 w-3.5" />
+                {taskFilters.priority.slice(0, 1).toUpperCase() +
+                  taskFilters.priority.slice(1) || "Priority"}
+                <ChevronDown className="h-3.5 w-3.5" />
+              </Button>
+            </DropdownMenuTrigger>
+
+            <DropdownMenuContent
+              align="start"
+              className="w-36 bg-white border border-[--sidebar-border]"
+            >
+              {priorityOptions.map((item) => (
+                <DropdownMenuItem
+                  key={item.value}
+                  onClick={() =>
+                    onFilterChange("priority", item.value)
+                  }
+                >
+                  {item.label}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           <Button
             variant="secondary"

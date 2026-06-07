@@ -29,7 +29,6 @@ authenticateBluePrint(users_blp, skip={"login", "registerUser"})
 authenticateBluePrint(workspace_blp)
 authenticateBluePrint(workspacemember_blp)
 authenticateBluePrint(task_blp)
-authenticateBluePrint(task_blp)
 authenticateBluePrint(activitylog_blp)
 
 app.register_blueprint(users_blp, url_prefix="/api/user")
