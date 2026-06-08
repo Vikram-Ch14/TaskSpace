@@ -24,7 +24,7 @@ const priorityOptions = [
   { label: "Medium", value: "medium" },
   { label: "High", value: "high" },
   { label: "Highest", value: "highest" },
-  { label: "None", value: "" },
+  { label: "None", value: "none" },
 ];
 
 export interface UserOption {
@@ -53,8 +53,8 @@ export const TaskList = () => {
     todo: false,
     in_progress: false,
     done: false,
-    priority: "",
-    userId: "",
+    priority: "none",
+    userId: "unassigned",
   });
   const tasksListRef = useRef<TaskCardData[]>([]);
 
@@ -125,8 +125,8 @@ export const TaskList = () => {
         updatedFilters.todo === false &&
         updatedFilters.in_progress === false &&
         updatedFilters.done === false &&
-        updatedFilters.priority === "" &&
-        updatedFilters.userId === ""
+        updatedFilters.priority === "none" &&
+        updatedFilters.userId === "unassigned"
       )
         return true;
       return false;
@@ -167,7 +167,7 @@ export const TaskList = () => {
           value: member.id,
         }));
 
-        formattedUsers.push({ label: "Unassigned", value: "" });
+        formattedUsers.push({ label: "Unassigned", value: "unassigned" });
 
         setUsers(formattedUsers);
       } catch {
@@ -225,8 +225,10 @@ export const TaskList = () => {
                 className="h-7 gap-1 rounded-md border border-[--sidebar-border] px-4 text-xs font-medium"
               >
                 <Flag className="h-3.5 w-3.5" />
-                {taskFilters.priority.slice(0, 1).toUpperCase() +
-                  taskFilters.priority.slice(1) || "Priority"}
+                {taskFilters.priority === "none"
+                  ? "Priority"
+                  : taskFilters.priority.slice(0, 1).toUpperCase() +
+                      taskFilters.priority.slice(1) || "Priority"}
                 <ChevronDown className="h-3.5 w-3.5" />
               </Button>
             </DropdownMenuTrigger>
@@ -253,9 +255,10 @@ export const TaskList = () => {
                 className="h-7 flex items-center gap-1 border border-[--sidebar-border] px-4 text-xs font-medium rounded-md"
               >
                 <User />
-                {(taskFilters.userId &&
-                  users.find((u) => u?.value === taskFilters.userId)?.label) ||
-                  "Assignee"}
+                {(taskFilters.userId === "unassigned"
+                  ? "Assignee"
+                  : users.find((u) => u?.value === taskFilters.userId)
+                      ?.label) || "Assignee"}
                 <ChevronDown className="h-3.5 w-3.5" />
               </Button>
             </DropdownMenuTrigger>
