@@ -24,6 +24,7 @@ const priorityOptions = [
   { label: "Medium", value: "medium" },
   { label: "High", value: "high" },
   { label: "Highest", value: "highest" },
+  { label: "None", value: "" },
 ];
 
 export interface UserOption {
@@ -40,6 +41,7 @@ interface TaskFilter {
   in_progress: boolean;
   done: boolean;
   priority: string;
+  userId: string;
 }
 
 export const TaskList = () => {
@@ -52,6 +54,7 @@ export const TaskList = () => {
     in_progress: false,
     done: false,
     priority: "",
+    userId: "",
   });
   const tasksListRef = useRef<TaskCardData[]>([]);
 
@@ -104,20 +107,26 @@ export const TaskList = () => {
     setTaskFilters(updatedFilters);
 
     const filteredTasks = tasksListRef.current.filter((task) => {
-      console.log(task.priority, updatedFilters.priority);
       if (updatedFilters.todo === true && task.status === "todo") return true;
       if (updatedFilters.in_progress === true && task.status === "in_progress")
         return true;
       if (updatedFilters.done === true && task.status === "done") return true;
-      if(updatedFilters.priority === "low" && task.priority === "low") return true;
-      if(updatedFilters.priority === "medium" && task.priority === "medium") return true;
-      if(updatedFilters.priority === "high" && task.priority === "high") return true;
-      if(updatedFilters.priority === "highest" && task.priority === "highest") return true;
+      if (updatedFilters.priority === "low" && task.priority === "low")
+        return true;
+      if (updatedFilters.priority === "medium" && task.priority === "medium")
+        return true;
+      if (updatedFilters.priority === "high" && task.priority === "high")
+        return true;
+      if (updatedFilters.priority === "highest" && task.priority === "highest")
+        return true;
+
+      if (updatedFilters.userId === task.assignee?.userId) return true;
       if (
         updatedFilters.todo === false &&
         updatedFilters.in_progress === false &&
         updatedFilters.done === false &&
-        updatedFilters.priority === ""
+        updatedFilters.priority === "" &&
+        updatedFilters.userId === ""
       )
         return true;
       return false;
@@ -157,6 +166,8 @@ export const TaskList = () => {
           label: member.username,
           value: member.id,
         }));
+
+        formattedUsers.push({ label: "Unassigned", value: "" });
 
         setUsers(formattedUsers);
       } catch {
@@ -227,9 +238,7 @@ export const TaskList = () => {
               {priorityOptions.map((item) => (
                 <DropdownMenuItem
                   key={item.value}
-                  onClick={() =>
-                    onFilterChange("priority", item.value)
-                  }
+                  onClick={() => onFilterChange("priority", item.value)}
                 >
                   {item.label}
                 </DropdownMenuItem>
@@ -237,21 +246,34 @@ export const TaskList = () => {
             </DropdownMenuContent>
           </DropdownMenu>
 
-          <Button
-            variant="secondary"
-            className="h-7 flex items-center gap-1 border border-[--sidebar-border] px-4 text-xs font-medium rounded-md"
-          >
-            <User />
-            Assignee
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="secondary"
+                className="h-7 flex items-center gap-1 border border-[--sidebar-border] px-4 text-xs font-medium rounded-md"
+              >
+                <User />
+                {(taskFilters.userId &&
+                  users.find((u) => u?.value === taskFilters.userId)?.label) ||
+                  "Assignee"}
+                <ChevronDown className="h-3.5 w-3.5" />
+              </Button>
+            </DropdownMenuTrigger>
 
-          <Button
-            variant="secondary"
-            className="h-7 flex items-center gap-1 border border-[--sidebar-border] px-4 text-xs font-medium rounded-md"
-          >
-            <SortAscIcon />
-            Sort
-          </Button>
+            <DropdownMenuContent
+              align="start"
+              className="w-36 bg-white border border-[--sidebar-border]"
+            >
+              {users.map((item) => (
+                <DropdownMenuItem
+                  key={item.value}
+                  onClick={() => onFilterChange("userId", item.value)}
+                >
+                  {item.label}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
       <div>
