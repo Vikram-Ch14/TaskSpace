@@ -28,6 +28,7 @@ import { Calendar } from "@/components/ui/calendar";
 import type { UserOption } from "./TaskList";
 import { updateTask } from "@/api/taskService/taskService";
 import { toast } from "sonner";
+import { useTaskStore } from "@/stores/taskStore";
 
 const statusOptions = [
   { label: "Todo", value: "todo" },
@@ -63,6 +64,7 @@ export const TaskDetailsDialog = ({
   });
 
   const [isSaving, setIsSaving] = useState(false);
+  const setHasFetch = useTaskStore((state) => state.setHasFetch);
 
   useEffect(() => {
     if (!task) return;
@@ -90,6 +92,7 @@ export const TaskDetailsDialog = ({
       };
 
       await updateTask(task.id, payload);
+      setHasFetch((prev) => !prev);
 
       toast.success("Task updated successfully");
     } catch (error) {

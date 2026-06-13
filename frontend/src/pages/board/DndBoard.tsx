@@ -1,19 +1,16 @@
-import { useEffect, useMemo, useState } from "react";
-import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { DndContext, type DragEndEvent } from "@dnd-kit/core";
 import { KanbanColumnSkeleton } from "./BoardColumnSkeleton";
 import { getTasks } from "@/api/taskService/taskService";
 import type { TaskResponse, Tasks, TaskStatus } from "@/api/taskService/types";
 import type { TaskCardData } from "../tasks/types";
-import { priorityStyles } from "./constants";
 import { avatarColors } from "../tasks/constants";
-import { Plus } from "lucide-react";
 import { TaskDetailsDialog } from "../tasks/TaskDetailsDialog";
 import { getMembers } from "@/api/memberService/memberService";
 import { toast } from "sonner";
+import { TaskColumn } from "./TaskColumn";
 
-type KanbanColumn = {
+export type KanbanColumn = {
   id: TaskStatus;
   title: string;
   count: number;
@@ -33,8 +30,10 @@ interface Member {
 export const DndBoard = () => {
   const [tasks, setTasks] = useState<TaskCardData[]>([]);
   const [selectedTask, setSelectedTask] = useState<TaskCardData | null>(null);
+  const [activeTask, setActiveTask] = useState<TaskCardData | null>(null);
   const [users, setUsers] = useState<UserOption[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const boardRef = useRef<HTMLDivElement>(null);
 
   const getAvatarColor = (id: string) => {
     const hash = id
@@ -147,6 +146,29 @@ export const DndBoard = () => {
     fetchMembers();
   }, []);
 
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { over, active } = event;
+    if (!over || !active) return;
+    if (over.id === active.id) return;
+    if (!active.data.current) return;
+    const orginalPositionTaskId = active.data.current.task.id;
+    let status = active.data.current.task.status;
+
+    if (over.id === "todo") {
+      status = "todo";
+    } else if (over.id === "in_progress") {
+      status = "in_progress";
+    } else if (over.id === "done") {
+      status = "done";
+    }
+
+    const tasksCopy = tasks.map((task) => ({
+      ...task,
+      status: task.id === orginalPositionTaskId ? status : task.status,
+    }));
+    setTasks(tasksCopy);
+  };
+
   if (isLoading) {
     return (
       <div className="grid h-full grid-cols-1 gap-4 xl:grid-cols-3">
@@ -158,63 +180,68 @@ export const DndBoard = () => {
   }
 
   return (
-    <div className="grid h-full grid-cols-1 gap-4 xl:grid-cols-3">
-      {columns.map((column) => (
-        <div
-          key={column.id}
-          className="rounded-xl border border-slate-200 bg-slate-50 p-3"
-        >
-          <div className="mb-3 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="h-2 w-2 rounded-full bg-slate-400" />
+    <div
+      className="grid h-full grid-cols-1 gap-4 xl:grid-cols-3"
+      ref={boardRef}
+    >
+      <DndContext
+        onDragEnd={(event) => {
+          setActiveTask(null);
+          handleDragEnd(event);
+        }}
+        onDragStart={(event) => {
+          setActiveTask(event.active.data.current?.task);
+        }}
+        modifiers={[
+          ({ transform, draggingNodeRect }) => {
+            const bounds = boardRef.current?.getBoundingClientRect();
 
-              <h2 className="text-sm font-medium text-slate-900">
-                {column.title}
-              </h2>
-            </div>
+            if (!bounds || !draggingNodeRect) {
+              return transform;
+            }
 
-            <div className="rounded-md bg-slate-200 px-2 py-0.5 text-xs text-slate-600">
-              {column.count}
-            </div>
-          </div>
+            let x = transform.x;
+            let y = transform.y;
 
-          <div className="space-y-2">
-            {column.tasks.map((task) => {
-              const priority = priorityStyles[task.priority];
+            const left = draggingNodeRect.left + x;
+            const right = draggingNodeRect.right + x;
 
-              return (
-                <Card
-                  key={task.id}
-                  className="rounded-md border border-slate-200 bg-white p-2 shadow-none cursor-pointer"
-                  onClick={() => setSelectedTask(task)}
-                >
-                  <h3 className="text-sm font-medium leading-snug text-slate-900">
-                    {task.title}
-                  </h3>
+            const top = draggingNodeRect.top + y;
+            const bottom = draggingNodeRect.bottom + y;
 
-                  {task.description && (
-                    <p className="mt-1 text-xs leading-relaxed text-slate-500">
-                      {task.description}
-                    </p>
-                  )}
+            if (left < bounds.left) {
+              x += bounds.left - left;
+            }
 
-                  <div className="mt-2 flex items-center justify-between">
-                    <Badge
-                      className={`rounded-md border px-2 py-0.5 text-xs font-medium ${priority.className}`}
-                    >
-                      {priority.label}
-                    </Badge>
+            if (right > bounds.right) {
+              x -= right - bounds.right;
+            }
 
-                    <span className="text-xs text-slate-400">
-                      {task.dueDate}
-                    </span>
-                  </div>
-                </Card>
-              );
-            })}
-          </div>
-        </div>
-      ))}
+            if (top < bounds.top) {
+              y += bounds.top - top;
+            }
+
+            if (bottom > bounds.bottom) {
+              y -= bottom - bounds.bottom;
+            }
+
+            return {
+              ...transform,
+              x,
+              y,
+            };
+          },
+        ]}
+      >
+        {columns.map((column) => (
+          <TaskColumn
+            key={column.id}
+            column={column}
+            setSelectedTask={setSelectedTask}
+          />
+        ))}
+      </DndContext>
+
       <TaskDetailsDialog
         task={selectedTask}
         open={!!selectedTask}

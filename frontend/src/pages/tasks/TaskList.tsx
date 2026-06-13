@@ -18,6 +18,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useTaskStore } from "@/stores/taskStore";
 
 const priorityOptions = [
   { label: "Low", value: "low" },
@@ -57,6 +58,7 @@ export const TaskList = () => {
     userId: "unassigned",
   });
   const tasksListRef = useRef<TaskCardData[]>([]);
+  const hasFetch = useTaskStore((state) => state.hasFetch);
 
   const getAvatarColor = (id: string) => {
     const hash = id
@@ -136,6 +138,27 @@ export const TaskList = () => {
   };
 
   useEffect(() => {
+    const fetchMembers = async () => {
+      try {
+        const response: Member[] = await getMembers();
+
+        const formattedUsers = response.map((member) => ({
+          label: member.username,
+          value: member.id,
+        }));
+
+        formattedUsers.push({ label: "Unassigned", value: "unassigned" });
+
+        setUsers(formattedUsers);
+      } catch {
+        toast.error("Failed to load members");
+      }
+    };
+
+    fetchMembers();
+  }, []);
+
+  useEffect(() => {
     const fetchTasks = async () => {
       try {
         setIsLoading(true);
@@ -157,27 +180,8 @@ export const TaskList = () => {
         setIsLoading(false);
       }
     };
-
-    const fetchMembers = async () => {
-      try {
-        const response: Member[] = await getMembers();
-
-        const formattedUsers = response.map((member) => ({
-          label: member.username,
-          value: member.id,
-        }));
-
-        formattedUsers.push({ label: "Unassigned", value: "unassigned" });
-
-        setUsers(formattedUsers);
-      } catch {
-        toast.error("Failed to load members");
-      }
-    };
-
     fetchTasks();
-    fetchMembers();
-  }, []);
+  }, [hasFetch]);
   return (
     <div className="flex flex-col flex-1 gap-4">
       <div className="flex items-start gap-4 p-4 bg-[#fafafa] border border-[--sidebar-border] rounded-md">
