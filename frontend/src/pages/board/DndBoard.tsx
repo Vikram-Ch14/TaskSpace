@@ -15,6 +15,7 @@ import { TaskDetailsDialog } from "../tasks/TaskDetailsDialog";
 import { getMembers } from "@/api/memberService/memberService";
 import { toast } from "sonner";
 import { TaskColumn } from "./TaskColumn";
+import { useTaskStore } from "@/stores/taskStore";
 
 export type KanbanColumn = {
   id: TaskStatus;
@@ -47,6 +48,8 @@ export const DndBoard = () => {
       },
     }),
   );
+  const tasksRef = useRef<TaskCardData[]>([]);
+  const hasFetch = useTaskStore((state) => state.hasFetch);
 
   const getAvatarColor = (id: string) => {
     const hash = id
@@ -122,24 +125,6 @@ export const DndBoard = () => {
   }, [tasks]);
 
   useEffect(() => {
-    const fetchTasks = async () => {
-      try {
-        setIsLoading(true);
-        const payload = {
-          filters: {
-            page: 1,
-            per_page: 10,
-          },
-        };
-
-        const response: Tasks = await getTasks(payload);
-
-        setTasks(response.tasks.map(formatTask));
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
     const fetchMembers = async () => {
       try {
         const response: Member[] = await getMembers();
@@ -155,9 +140,30 @@ export const DndBoard = () => {
       }
     };
 
-    fetchTasks();
     fetchMembers();
   }, []);
+
+  useEffect(() => {
+    const fetchTasks = async () => {
+      try {
+        setIsLoading(true);
+        const payload = {
+          filters: {
+            page: 1,
+            per_page: 15,
+          },
+        };
+
+        const response: Tasks = await getTasks(payload);
+
+        setTasks(response.tasks.map(formatTask));
+        tasksRef.current = response.tasks.map(formatTask);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchTasks();
+  }, [hasFetch]);
 
   const updateTaskStatus = async (task: TaskCardData, status: TaskStatus) => {
     try {
@@ -169,8 +175,8 @@ export const DndBoard = () => {
       toast.success("Task updated successfully");
     } catch (err: unknown) {
       console.log(err);
-      toast.success("Task updated failed");
-
+      toast.error("Task updated failed");
+      setTasks(tasksRef.current);
     }
   };
 

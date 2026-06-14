@@ -35,6 +35,7 @@ import {
 import { getMembers } from "@/api/memberService/memberService";
 import { createTask } from "@/api/taskService/taskService";
 import { toast } from "sonner";
+import { useTaskStore } from "@/stores/taskStore";
 interface UserOption {
   label: string;
   value: string;
@@ -71,6 +72,7 @@ export const CreateTaskDialog = () => {
   const [date, setDate] = useState<Date>();
   const [users, setUsers] = useState<UserOption[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const setHasFetch = useTaskStore((state) => state.setHasFetch);
 
   const [form, setForm] = useState<CreateTaskForm>({
     title: "",
@@ -131,6 +133,7 @@ export const CreateTaskDialog = () => {
       };
 
       await createTask(payload);
+      setHasFetch((prev) => !prev);
 
       toast.success("Task created successfully");
 
