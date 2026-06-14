@@ -8,9 +8,10 @@ import { CSS } from "@dnd-kit/utilities";
 type TaskCardProps = {
   task: TaskCardData;
   onSelect: (task: TaskCardData) => void;
+  activeTask: TaskCardData | null;
 };
 
-export const TaskCard = ({ task, onSelect }: TaskCardProps) => {
+export const TaskCard = ({ task, onSelect, activeTask }: TaskCardProps) => {
   const { attributes, listeners, setNodeRef, transform } = useDraggable({
     id: task.id,
     data: {
@@ -27,11 +28,12 @@ export const TaskCard = ({ task, onSelect }: TaskCardProps) => {
   return (
     <Card
       key={task.id}
-      className="rounded-md border border-slate-200 bg-white p-2 shadow-none cursor-grab "
+      className={`rounded-md border border-slate-200 bg-white p-2 shadow-none ${activeTask ? "cursor-grab" : "cursor-pointer"} `}
       ref={setNodeRef}
       {...listeners}
       {...attributes}
       style={style}
+      onClick={() => !activeTask && onSelect(task)}
     >
       <h3 className="text-sm font-medium leading-snug text-slate-900">
         {task.title}

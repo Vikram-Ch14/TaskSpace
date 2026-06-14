@@ -1,7 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { DndContext, type DragEndEvent } from "@dnd-kit/core";
+import {
+  DndContext,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
 import { KanbanColumnSkeleton } from "./BoardColumnSkeleton";
-import { getTasks } from "@/api/taskService/taskService";
+import { getTasks, updateTask } from "@/api/taskService/taskService";
 import type { TaskResponse, Tasks, TaskStatus } from "@/api/taskService/types";
 import type { TaskCardData } from "../tasks/types";
 import { avatarColors } from "../tasks/constants";
@@ -34,6 +40,13 @@ export const DndBoard = () => {
   const [users, setUsers] = useState<UserOption[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const boardRef = useRef<HTMLDivElement>(null);
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+  );
 
   const getAvatarColor = (id: string) => {
     const hash = id
@@ -146,13 +159,31 @@ export const DndBoard = () => {
     fetchMembers();
   }, []);
 
-  const handleDragEnd = (event: DragEndEvent) => {
+  const updateTaskStatus = async (task: TaskCardData, status: TaskStatus) => {
+    try {
+      const updatedTasks = {
+        ...task,
+        status: status,
+      };
+      await updateTask(task.id, updatedTasks);
+      toast.success("Task updated successfully");
+    } catch (err: unknown) {
+      console.log(err);
+      toast.success("Task updated failed");
+
+    }
+  };
+
+  const handleDragEnd = async (event: DragEndEvent) => {
     const { over, active } = event;
+
     if (!over || !active) return;
-    if (over.id === active.id) return;
     if (!active.data.current) return;
-    const orginalPositionTaskId = active.data.current.task.id;
+
     let status = active.data.current.task.status;
+
+    if (over.id === status) return;
+    const orginalPositionTaskId = active.data.current.task.id;
 
     if (over.id === "todo") {
       status = "todo";
@@ -167,6 +198,7 @@ export const DndBoard = () => {
       status: task.id === orginalPositionTaskId ? status : task.status,
     }));
     setTasks(tasksCopy);
+    await updateTaskStatus(active.data.current.task, status);
   };
 
   if (isLoading) {
@@ -192,6 +224,7 @@ export const DndBoard = () => {
         onDragStart={(event) => {
           setActiveTask(event.active.data.current?.task);
         }}
+        sensors={sensors}
         modifiers={[
           ({ transform, draggingNodeRect }) => {
             const bounds = boardRef.current?.getBoundingClientRect();
@@ -238,6 +271,7 @@ export const DndBoard = () => {
             key={column.id}
             column={column}
             setSelectedTask={setSelectedTask}
+            activeTask={activeTask}
           />
         ))}
       </DndContext>

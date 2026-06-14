@@ -1,7 +1,4 @@
-import { Card } from "@/components/ui/card";
-import { priorityStyles } from "./constants";
 import type { KanbanColumn } from "./DndBoard";
-import { Badge } from "@/components/ui/badge";
 import type { TaskCardData } from "../tasks/types";
 import { useDroppable } from "@dnd-kit/core";
 import { TaskCard } from "./TaskCard";
@@ -9,9 +6,10 @@ import { TaskCard } from "./TaskCard";
 type Props = {
   column: KanbanColumn;
   setSelectedTask: (task: TaskCardData) => void;
+  activeTask: TaskCardData | null;
 };
 
-export const TaskColumn = ({ column, setSelectedTask }: Props) => {
+export const TaskColumn = ({ column, setSelectedTask, activeTask }: Props) => {
   const { setNodeRef, isOver } = useDroppable({
     id: column.id,
   });
@@ -36,7 +34,7 @@ export const TaskColumn = ({ column, setSelectedTask }: Props) => {
       <div className="space-y-2">
         {column.tasks.map((task) => {
           return (
-            <TaskCard key={task.id} task={task} onSelect={setSelectedTask} />
+            <TaskCard key={task.id} task={task} onSelect={setSelectedTask}  activeTask={activeTask}/>
           );
         })}
       </div>
