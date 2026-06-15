@@ -3,7 +3,7 @@ import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { ChevronDown, Flag, SortAscIcon, User } from "lucide-react";
 import { TaskCard } from "./TaskCard";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { getTasks } from "@/api/taskService/taskService";
 import type { TaskCardData } from "./types";
 import type { TaskResponse, Tasks } from "@/api/taskService/types";
@@ -19,6 +19,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useTaskStore } from "@/stores/taskStore";
+import debounce from "lodash.debounce";
 
 const priorityOptions = [
   { label: "Low", value: "low" },
@@ -59,6 +60,9 @@ export const TaskList = () => {
   });
   const tasksListRef = useRef<TaskCardData[]>([]);
   const hasFetch = useTaskStore((state) => state.hasFetch);
+  const fetchLoadingRef = useRef<boolean>(false);
+  const [page, setPage] = useState(1);
+  const records = 20;
 
   const getAvatarColor = (id: string) => {
     const hash = id
@@ -137,6 +141,53 @@ export const TaskList = () => {
     setTasks(filteredTasks);
   };
 
+  const fetchTasks = async () => {
+    try {
+      setIsLoading(true);
+      const payload = {
+        filters: {
+          page: 1,
+          per_page: 10,
+        },
+      };
+
+      const response: Tasks = await getTasks(payload);
+      const formattedTasks = response.tasks.map(formatTask);
+
+      setTasks(formattedTasks);
+      tasksListRef.current = formattedTasks;
+      setPage((prev) => prev + 1);
+
+      fetchLoadingRef.current = false;
+    } catch {
+      toast.error("Failed to load tasks");
+      fetchLoadingRef.current = false;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleFetchTasks = useMemo(
+    () =>
+      debounce(() => {
+        fetchTasks();
+      }, 3000),
+    [],
+  );
+
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    if (
+      e.currentTarget.scrollHeight -
+        (e.currentTarget.scrollTop + window.innerHeight) <
+        100 &&
+      !fetchLoadingRef.current
+    ) {
+      console.log("fetching");
+      fetchLoadingRef.current = true;
+      handleFetchTasks();
+    }
+  };
+
   useEffect(() => {
     const fetchMembers = async () => {
       try {
@@ -159,31 +210,10 @@ export const TaskList = () => {
   }, []);
 
   useEffect(() => {
-    const fetchTasks = async () => {
-      try {
-        setIsLoading(true);
-        const payload = {
-          filters: {
-            page: 1,
-            per_page: 10,
-          },
-        };
-
-        const response: Tasks = await getTasks(payload);
-        const formattedTasks = response.tasks.map(formatTask);
-
-        setTasks(formattedTasks);
-        tasksListRef.current = formattedTasks;
-      } catch {
-        toast.error("Failed to load tasks");
-      } finally {
-        setIsLoading(false);
-      }
-    };
     fetchTasks();
   }, [hasFetch]);
   return (
-    <div className="flex flex-col flex-1 gap-4">
+    <div className="flex flex-col flex-1 gap-4 overflow-auto">
       <div className="flex items-start gap-4 p-4 bg-[#fafafa] border border-[--sidebar-border] rounded-md">
         <div className="w-1/3">
           <Field className="flex flex-co gap-1">
@@ -283,8 +313,11 @@ export const TaskList = () => {
           </DropdownMenu>
         </div>
       </div>
-      <div>
-        <div className="grid grid-cols-2 gap-2.5 md:grid-cols-2">
+      <div
+        className="overflow-auto p-4 mb-24 scrollbar-hide"
+        onScroll={handleScroll}
+      >
+        <div className="grid grid-cols-2 gap-2.5 md:grid-cols-2 ">
           {isLoading
             ? Array.from({ length: 4 }).map((_, index) => (
                 <TaskCardSkeleton key={index} />
