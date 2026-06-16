@@ -15,4 +15,5 @@ export interface TaskCardData {
     color: string;
     userId : string
   } | null;
+  created_at: string;
 }

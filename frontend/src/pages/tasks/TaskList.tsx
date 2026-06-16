@@ -1,9 +1,9 @@
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { ChevronDown, Flag, SortAscIcon, User } from "lucide-react";
+import { Check, ChevronDown, Flag, Loader2, User } from "lucide-react";
 import { TaskCard } from "./TaskCard";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getTasks } from "@/api/taskService/taskService";
 import type { TaskCardData } from "./types";
 import type { TaskResponse, Tasks } from "@/api/taskService/types";
@@ -21,185 +21,210 @@ import {
 import { useTaskStore } from "@/stores/taskStore";
 import debounce from "lodash.debounce";
 
-const priorityOptions = [
+type TaskStatus = "todo" | "in_progress" | "done";
+type Priority = "low" | "medium" | "high" | "highest";
+
+const STATUS_OPTIONS: { label: string; value: TaskStatus }[] = [
+  { label: "Todo", value: "todo" },
+  { label: "In Progress", value: "in_progress" },
+  { label: "Done", value: "done" },
+];
+
+const PRIORITY_OPTIONS: { label: string; value: Priority }[] = [
   { label: "Low", value: "low" },
   { label: "Medium", value: "medium" },
   { label: "High", value: "high" },
   { label: "Highest", value: "highest" },
-  { label: "None", value: "none" },
 ];
+
+const PAGE_SIZE = 10;
+const UNASSIGNED = "unassigned";
 
 export interface UserOption {
   label: string;
   value: string;
 }
+
 interface Member {
   id: string;
   username: string;
 }
 
-interface TaskFilter {
-  todo: boolean;
-  in_progress: boolean;
-  done: boolean;
-  priority: string;
-  userId: string;
+interface TaskFilters {
+  statuses: TaskStatus[];
+  priorities: Priority[];
+  assigneeId: string;
 }
+
+const INITIAL_FILTERS: TaskFilters = {
+  statuses: [],
+  priorities: [],
+  assigneeId: UNASSIGNED,
+};
+
+const getAvatarColor = (id: string) => {
+  const hash = id.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  return avatarColors[hash % avatarColors.length];
+};
+
+const formatTask = (task: TaskResponse): TaskCardData => {
+  const dueDate = task.due_date ? new Date(task.due_date) : null;
+
+  return {
+    id: task.id,
+    code: `TS-${task.id.slice(0, 4).toUpperCase()}`,
+    title: task.title,
+    description: task.description ?? "",
+    priority: task.priority,
+    status: task.status,
+    dueDate: dueDate
+      ? dueDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })
+      : "-",
+    isOverdue: !!dueDate && task.status !== "done" && dueDate < new Date(),
+    assignee: task.assignee
+      ? {
+          initial: task.assignee.username.charAt(0).toUpperCase(),
+          name: task.assignee.username,
+          color: getAvatarColor(task.assignee.id),
+          userId: task.assignee.id,
+        }
+      : null,
+    created_at: task.created_at,
+  };
+};
 
 export const TaskList = () => {
   const [tasks, setTasks] = useState<TaskCardData[]>([]);
   const [selectedTask, setSelectedTask] = useState<TaskCardData | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
   const [users, setUsers] = useState<UserOption[]>([]);
-  const [taskFilters, setTaskFilters] = useState<TaskFilter>({
-    todo: false,
-    in_progress: false,
-    done: false,
-    priority: "none",
-    userId: "unassigned",
-  });
-  const tasksListRef = useRef<TaskCardData[]>([]);
+  const [filters, setFilters] = useState<TaskFilters>(INITIAL_FILTERS);
+  const [search, setSearch] = useState("");
+  const [totalRecords, setTotalRecords] = useState(0);
+  const [isLoading, setIsLoading] = useState(false); // initial / filter load
+  const [isLoadingMore, setIsLoadingMore] = useState(false); // pagination load
+
+  // --- paging state in refs so the scroll closure never goes stale ---
+  const isFetchingRef = useRef(false);
+  const nextPageRef = useRef(1); // page number to request NEXT
+  const loadedCountRef = useRef(0); // how many tasks are loaded
+  const totalRef = useRef(0); // total matching records
+  const reachedEndRef = useRef(false); // true once a short page is returned
+  const filtersRef = useRef(filters);
+
+  // increments on every filter change; each fetch captures its own value
+  // and discards its result if a newer request has started since.
+  const requestIdRef = useRef(0);
+
   const hasFetch = useTaskStore((state) => state.hasFetch);
-  const fetchLoadingRef = useRef<boolean>(false);
-  const [page, setPage] = useState(1);
-  const records = 20;
 
-  const getAvatarColor = (id: string) => {
-    const hash = id
-      .split("")
-      .reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  useEffect(() => {
+    filtersRef.current = filters;
+  }, [filters]);
 
-    return avatarColors[hash % avatarColors.length];
-  };
+  const fetchTasks = useCallback(
+    async (
+      pageToFetch: number,
+      currentFilters: TaskFilters,
+      reactive = false,
+    ) => {
+      if (isFetchingRef.current) return;
+      if (!reactive && reachedEndRef.current) return; // nothing left to load
 
-  const formatTask = (task: TaskResponse): TaskCardData => {
-    const dueDate = task.due_date ? new Date(task.due_date) : null;
+      // tag this request; reactive (filter) loads start a new generation
+      if (reactive) requestIdRef.current += 1;
+      const myRequestId = requestIdRef.current;
 
-    return {
-      id: task.id,
+      isFetchingRef.current = true;
+      if (reactive) setIsLoading(true);
+      else setIsLoadingMore(true);
 
-      code: `TS-${task.id.slice(0, 4).toUpperCase()}`,
+      try {
+        const payload = {
+          filters: {
+            status: currentFilters.statuses.length
+              ? currentFilters.statuses
+              : undefined,
+            priority: currentFilters.priorities.length
+              ? currentFilters.priorities
+              : undefined,
+            assigned_to:
+              currentFilters.assigneeId !== UNASSIGNED
+                ? [currentFilters.assigneeId]
+                : undefined,
+            page: pageToFetch,
+            per_page: PAGE_SIZE,
+          },
+        };
 
-      title: task.title,
+        const response: Tasks = await getTasks(payload);
 
-      description: task.description ?? "",
+        // a newer filter selection started while we were waiting -> discard
+        if (myRequestId !== requestIdRef.current) return;
 
-      priority: task.priority,
+        const formatted = response.tasks.map(formatTask);
 
-      status: task.status,
+        setTotalRecords(response.total);
+        totalRef.current = response.total;
 
-      dueDate: dueDate
-        ? dueDate.toLocaleDateString("en-US", {
-            month: "short",
-            day: "numeric",
-          })
-        : "-",
+        // primary end signal: a short page means there's nothing after it
+        if (formatted.length < PAGE_SIZE) {
+          reachedEndRef.current = true;
+        }
 
-      isOverdue: !!dueDate && task.status !== "done" && dueDate < new Date(),
-
-      assignee: task.assignee
-        ? {
-            initial: task.assignee.username.charAt(0).toUpperCase(),
-            name: task.assignee.username,
-            color: getAvatarColor(task.assignee.id),
-            userId: task.assignee.id,
-          }
-        : null,
-    };
-  };
-
-  const onFilterChange = (key: string, value: boolean | string) => {
-    const updatedFilters = { ...taskFilters, [key]: value };
-    setTaskFilters(updatedFilters);
-
-    const filteredTasks = tasksListRef.current.filter((task) => {
-      if (updatedFilters.todo === true && task.status === "todo") return true;
-      if (updatedFilters.in_progress === true && task.status === "in_progress")
-        return true;
-      if (updatedFilters.done === true && task.status === "done") return true;
-      if (updatedFilters.priority === "low" && task.priority === "low")
-        return true;
-      if (updatedFilters.priority === "medium" && task.priority === "medium")
-        return true;
-      if (updatedFilters.priority === "high" && task.priority === "high")
-        return true;
-      if (updatedFilters.priority === "highest" && task.priority === "highest")
-        return true;
-
-      if (updatedFilters.userId === task.assignee?.userId) return true;
-      if (
-        updatedFilters.todo === false &&
-        updatedFilters.in_progress === false &&
-        updatedFilters.done === false &&
-        updatedFilters.priority === "none" &&
-        updatedFilters.userId === "unassigned"
-      )
-        return true;
-      return false;
-    });
-
-    setTasks(filteredTasks);
-  };
-
-  const fetchTasks = async () => {
-    try {
-      setIsLoading(true);
-      const payload = {
-        filters: {
-          page: 1,
-          per_page: 10,
-        },
-      };
-
-      const response: Tasks = await getTasks(payload);
-      const formattedTasks = response.tasks.map(formatTask);
-
-      setTasks(formattedTasks);
-      tasksListRef.current = formattedTasks;
-      setPage((prev) => prev + 1);
-
-      fetchLoadingRef.current = false;
-    } catch {
-      toast.error("Failed to load tasks");
-      fetchLoadingRef.current = false;
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleFetchTasks = useMemo(
-    () =>
-      debounce(() => {
-        fetchTasks();
-      }, 3000),
+        if (reactive) {
+          setTasks(formatted);
+          loadedCountRef.current = formatted.length;
+          nextPageRef.current = 2;
+        } else {
+          setTasks((prev) => {
+            const seen = new Set(prev.map((t) => t.id));
+            const next = [...prev];
+            for (const t of formatted) {
+              if (!seen.has(t.id)) {
+                seen.add(t.id);
+                next.push(t);
+              }
+            }
+            loadedCountRef.current = next.length;
+            return next;
+          });
+          nextPageRef.current = pageToFetch + 1;
+        }
+      } catch {
+        if (myRequestId === requestIdRef.current) {
+          toast.error("Failed to load tasks");
+        }
+      } finally {
+        if (myRequestId === requestIdRef.current) {
+          isFetchingRef.current = false;
+          setIsLoading(false);
+          setIsLoadingMore(false);
+        }
+      }
+    },
     [],
   );
 
-  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
-    if (
-      e.currentTarget.scrollHeight -
-        (e.currentTarget.scrollTop + window.innerHeight) <
-        100 &&
-      !fetchLoadingRef.current
-    ) {
-      console.log("fetching");
-      fetchLoadingRef.current = true;
-      handleFetchTasks();
-    }
-  };
+  // reset everything and load page 1 whenever filters change
+  useEffect(() => {
+    nextPageRef.current = 1;
+    loadedCountRef.current = 0;
+    totalRef.current = 0;
+    reachedEndRef.current = false;
+    isFetchingRef.current = false;
+    fetchTasks(1, filters, true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters, hasFetch]);
 
   useEffect(() => {
     const fetchMembers = async () => {
       try {
         const response: Member[] = await getMembers();
-
-        const formattedUsers = response.map((member) => ({
+        const formattedUsers: UserOption[] = response.map((member) => ({
           label: member.username,
           value: member.id,
         }));
-
-        formattedUsers.push({ label: "Unassigned", value: "unassigned" });
-
+        formattedUsers.push({ label: "Unassigned", value: UNASSIGNED });
         setUsers(formattedUsers);
       } catch {
         toast.error("Failed to load members");
@@ -209,48 +234,103 @@ export const TaskList = () => {
     fetchMembers();
   }, []);
 
-  useEffect(() => {
-    fetchTasks();
-  }, [hasFetch]);
+  // single stable debounced loader
+  const debouncedLoadMore = useMemo(
+    () =>
+      debounce(() => {
+        if (isFetchingRef.current) return;
+        if (reachedEndRef.current) return;
+        if (loadedCountRef.current >= totalRef.current && totalRef.current > 0)
+          return;
+        fetchTasks(nextPageRef.current, filtersRef.current, false);
+      }, 1500),
+    [fetchTasks],
+  );
+
+  useEffect(() => () => debouncedLoadMore.cancel(), [debouncedLoadMore]);
+
+  const toggleStatus = (status: TaskStatus) => {
+    setFilters((prev) => ({
+      ...prev,
+      statuses: prev.statuses.includes(status)
+        ? prev.statuses.filter((s) => s !== status)
+        : [...prev.statuses, status],
+    }));
+  };
+
+  const togglePriority = (priority: Priority) => {
+    setFilters((prev) => ({
+      ...prev,
+      priorities: prev.priorities.includes(priority)
+        ? prev.priorities.filter((p) => p !== priority)
+        : [...prev.priorities, priority],
+    }));
+  };
+
+  const setAssignee = (assigneeId: string) => {
+    setFilters((prev) => ({ ...prev, assigneeId }));
+  };
+
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const { scrollHeight, scrollTop, clientHeight } = e.currentTarget;
+    const reachedBottom = scrollHeight - (scrollTop + clientHeight) < 100;
+    if (reachedBottom && !isFetchingRef.current && !reachedEndRef.current) {
+      debouncedLoadMore();
+    }
+  };
+
+  const visibleTasks = search.trim()
+    ? tasks.filter((task) =>
+        task.title.toLowerCase().includes(search.trim().toLowerCase()),
+      )
+    : tasks;
+
+
+  const priorityLabel =
+    filters.priorities.length > 0
+      ? `Priority (${filters.priorities.length})`
+      : "Priority";
+
+  const assigneeLabel =
+    filters.assigneeId === UNASSIGNED
+      ? "Assignee"
+      : (users.find((u) => u.value === filters.assigneeId)?.label ??
+        "Assignee");
+
   return (
     <div className="flex flex-col flex-1 gap-4 overflow-auto">
       <div className="flex items-start gap-4 p-4 bg-[#fafafa] border border-[--sidebar-border] rounded-md">
         <div className="w-1/3">
-          <Field className="flex flex-co gap-1">
+          <Field className="flex flex-col gap-1">
             <Input
-              id="input-demo-api-key"
+              id="task-search"
               className="border border-[--sidebar-border] h-7"
               type="text"
               placeholder="Search..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
             />
           </Field>
         </div>
+
         <div className="flex items-center gap-4">
-          <Button
-            variant="secondary"
-            className={`h-7 flex items-center gap-1 border border-[--sidebar-border] px-4 text-xs font-medium ${taskFilters.todo ? "bg-black text-white hover:bg-black hover:text-white" : "bg-[#f5f4ed]"} rounded-md  `}
-            onClick={() => onFilterChange("todo", !taskFilters.todo)}
-          >
-            Todo
-          </Button>
-
-          <Button
-            variant="secondary"
-            className={`h-7 flex items-center gap-1 border border-[--sidebar-border] px-4 text-xs font-medium ${taskFilters.in_progress ? "bg-black text-white hover:bg-black hover:text-white" : "bg-[#f5f4ed]"} rounded-md`}
-            onClick={() =>
-              onFilterChange("in_progress", !taskFilters.in_progress)
-            }
-          >
-            In Progress
-          </Button>
-
-          <Button
-            variant="secondary"
-            className={`h-7 flex items-center gap-1 border border-[--sidebar-border] px-4 text-xs font-medium ${taskFilters.done ? "bg-black text-white hover:bg-black hover:text-white" : "bg-[#f5f4ed]"}  rounded-md`}
-            onClick={() => onFilterChange("done", !taskFilters.done)}
-          >
-            Done
-          </Button>
+          {STATUS_OPTIONS.map(({ label, value }) => {
+            const active = filters.statuses.includes(value);
+            return (
+              <Button
+                key={value}
+                variant="secondary"
+                className={`h-7 flex items-center gap-1 border border-[--sidebar-border] px-4 text-xs font-medium rounded-md ${
+                  active
+                    ? "bg-black text-white hover:bg-black hover:text-white"
+                    : "bg-[#f5f4ed]"
+                }`}
+                onClick={() => toggleStatus(value)}
+              >
+                {label}
+              </Button>
+            );
+          })}
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -259,26 +339,30 @@ export const TaskList = () => {
                 className="h-7 gap-1 rounded-md border border-[--sidebar-border] px-4 text-xs font-medium"
               >
                 <Flag className="h-3.5 w-3.5" />
-                {taskFilters.priority === "none"
-                  ? "Priority"
-                  : taskFilters.priority.slice(0, 1).toUpperCase() +
-                      taskFilters.priority.slice(1) || "Priority"}
+                {priorityLabel}
                 <ChevronDown className="h-3.5 w-3.5" />
               </Button>
             </DropdownMenuTrigger>
-
             <DropdownMenuContent
               align="start"
               className="w-36 bg-white border border-[--sidebar-border]"
             >
-              {priorityOptions.map((item) => (
-                <DropdownMenuItem
-                  key={item.value}
-                  onClick={() => onFilterChange("priority", item.value)}
-                >
-                  {item.label}
-                </DropdownMenuItem>
-              ))}
+              {PRIORITY_OPTIONS.map((item) => {
+                const checked = filters.priorities.includes(item.value);
+                return (
+                  <DropdownMenuItem
+                    key={item.value}
+                    onSelect={(e) => {
+                      e.preventDefault();
+                      togglePriority(item.value);
+                    }}
+                    className="flex items-center justify-between"
+                  >
+                    {item.label}
+                    {checked && <Check className="h-3.5 w-3.5" />}
+                  </DropdownMenuItem>
+                );
+              })}
             </DropdownMenuContent>
           </DropdownMenu>
 
@@ -288,15 +372,11 @@ export const TaskList = () => {
                 variant="secondary"
                 className="h-7 flex items-center gap-1 border border-[--sidebar-border] px-4 text-xs font-medium rounded-md"
               >
-                <User />
-                {(taskFilters.userId === "unassigned"
-                  ? "Assignee"
-                  : users.find((u) => u?.value === taskFilters.userId)
-                      ?.label) || "Assignee"}
+                <User className="h-3.5 w-3.5" />
+                {assigneeLabel}
                 <ChevronDown className="h-3.5 w-3.5" />
               </Button>
             </DropdownMenuTrigger>
-
             <DropdownMenuContent
               align="start"
               className="w-36 bg-white border border-[--sidebar-border]"
@@ -304,7 +384,7 @@ export const TaskList = () => {
               {users.map((item) => (
                 <DropdownMenuItem
                   key={item.value}
-                  onClick={() => onFilterChange("userId", item.value)}
+                  onClick={() => setAssignee(item.value)}
                 >
                   {item.label}
                 </DropdownMenuItem>
@@ -313,16 +393,17 @@ export const TaskList = () => {
           </DropdownMenu>
         </div>
       </div>
+
       <div
         className="overflow-auto p-4 mb-24 scrollbar-hide"
         onScroll={handleScroll}
       >
-        <div className="grid grid-cols-2 gap-2.5 md:grid-cols-2 ">
+        <div className="grid grid-cols-2 gap-2.5 md:grid-cols-2">
           {isLoading
             ? Array.from({ length: 4 }).map((_, index) => (
                 <TaskCardSkeleton key={index} />
               ))
-            : tasks.map((task) => (
+            : visibleTasks.map((task) => (
                 <TaskCard
                   key={task.id}
                   task={task}
@@ -330,15 +411,20 @@ export const TaskList = () => {
                 />
               ))}
         </div>
+
+        {!isLoading && isLoadingMore && (
+          <div className="flex items-center justify-center gap-2 py-4 text-xs text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Loading more...
+          </div>
+        )}
       </div>
 
       <TaskDetailsDialog
         task={selectedTask}
         open={!!selectedTask}
         onOpenChange={(open) => {
-          if (!open) {
-            setSelectedTask(null);
-          }
+          if (!open) setSelectedTask(null);
         }}
         users={users}
       />
