@@ -136,7 +136,6 @@ export const TaskList = () => {
 
       isFetchingRef.current = true;
       if (reactive) setIsLoading(true);
-      else setIsLoadingMore(true);
 
       try {
         const payload = {
@@ -167,9 +166,7 @@ export const TaskList = () => {
         totalRef.current = response.total;
 
         // primary end signal: a short page means there's nothing after it
-        if (formatted.length < PAGE_SIZE) {
-          reachedEndRef.current = true;
-        }
+        reachedEndRef.current = formatted.length < PAGE_SIZE;
 
         if (reactive) {
           setTasks(formatted);
@@ -205,17 +202,6 @@ export const TaskList = () => {
     [],
   );
 
-  // reset everything and load page 1 whenever filters change
-  useEffect(() => {
-    nextPageRef.current = 1;
-    loadedCountRef.current = 0;
-    totalRef.current = 0;
-    reachedEndRef.current = false;
-    isFetchingRef.current = false;
-    fetchTasks(1, filters, true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filters, hasFetch]);
-
   useEffect(() => {
     const fetchMembers = async () => {
       try {
@@ -243,11 +229,28 @@ export const TaskList = () => {
         if (loadedCountRef.current >= totalRef.current && totalRef.current > 0)
           return;
         fetchTasks(nextPageRef.current, filtersRef.current, false);
-      }, 1500),
+      }, 2000),
     [fetchTasks],
   );
 
-  useEffect(() => () => debouncedLoadMore.cancel(), [debouncedLoadMore]);
+  useEffect(() => {
+    return () => {
+      debouncedLoadMore.cancel();
+    };
+  }, [debouncedLoadMore]);
+
+  useEffect(() => {
+    debouncedLoadMore.cancel();
+
+    requestIdRef.current += 1;
+
+    nextPageRef.current = 1;
+    loadedCountRef.current = 0;
+    totalRef.current = 0;
+    reachedEndRef.current = false;
+
+    fetchTasks(1, filters, true);
+  }, [filters, hasFetch, debouncedLoadMore]);
 
   const toggleStatus = (status: TaskStatus) => {
     setFilters((prev) => ({
@@ -268,13 +271,21 @@ export const TaskList = () => {
   };
 
   const setAssignee = (assigneeId: string) => {
-    setFilters((prev) => ({ ...prev, assigneeId }));
+    setFilters((prev) =>
+      prev.assigneeId === assigneeId
+        ? prev
+        : {
+            ...prev,
+            assigneeId,
+          },
+    );
   };
 
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const { scrollHeight, scrollTop, clientHeight } = e.currentTarget;
     const reachedBottom = scrollHeight - (scrollTop + clientHeight) < 100;
     if (reachedBottom && !isFetchingRef.current && !reachedEndRef.current) {
+      setIsLoadingMore(true);
       debouncedLoadMore();
     }
   };
@@ -284,7 +295,6 @@ export const TaskList = () => {
         task.title.toLowerCase().includes(search.trim().toLowerCase()),
       )
     : tasks;
-
 
   const priorityLabel =
     filters.priorities.length > 0
@@ -412,7 +422,7 @@ export const TaskList = () => {
               ))}
         </div>
 
-        {!isLoading && isLoadingMore && (
+        {isLoadingMore && (
           <div className="flex items-center justify-center gap-2 py-4 text-xs text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" />
             Loading more...

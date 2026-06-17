@@ -177,6 +177,7 @@ class TaskRepo:
         with DBSession() as session:
             workspace_id = g.workspace_id
             query = session.query(Task).filter_by(workspace_id=workspace_id)
+            count = query.count()
 
             status = data.filters.status
             priority = data.filters.priority
@@ -194,7 +195,6 @@ class TaskRepo:
                 query = query.limit(per_page).offset((page - 1) * per_page)
 
             tasks = query.all()
-            count = query.count()
             tasksList = [
                 TaskResponseSchema.model_validate(task).model_dump(mode="json")
                 for task in tasks

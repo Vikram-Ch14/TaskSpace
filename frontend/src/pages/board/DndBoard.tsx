@@ -92,6 +92,8 @@ export const DndBoard = () => {
             userId: task.assignee.id,
           }
         : null,
+
+      created_at: task.created_at,
     };
   };
 
@@ -149,8 +151,7 @@ export const DndBoard = () => {
         setIsLoading(true);
         const payload = {
           filters: {
-            page: 1,
-            per_page: 15,
+            
           },
         };
 
