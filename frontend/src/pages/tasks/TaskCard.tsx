@@ -38,7 +38,7 @@ export const TaskCard = ({ task, onClick }: TaskCardProps) => {
             isDone
               ? "text-slate-400 line-through"
               : task.isOverdue
-                ? "text-red-600"
+                ? "text-slate-600"
                 : "text-slate-900"
           }`}
         >

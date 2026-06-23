@@ -1,3 +1,4 @@
+import { getActivityLogs } from "@/api/activityService/activityService";
 import {
   Check,
   UserPlus,
@@ -7,6 +8,7 @@ import {
   RotateCcw,
   ArrowRight,
 } from "lucide-react";
+import { useEffect } from "react";
 
 
 const activityLogs = [
@@ -301,6 +303,18 @@ function DayGroup({ label, logs }: { label: string; logs: any[] }) {
 
 export const ActivityFeed =  () => {
   const grouped = groupByDay(activityLogs);
+
+  useEffect(() => {
+    async function fetchLogs() {
+      try {
+        const logs = await getActivityLogs();
+      } catch (error) {
+        console.error("Error fetching activity logs:", error);
+      }
+    }
+
+    fetchLogs();
+  },[])
 
   return (
     <div className="bg-white p-4">

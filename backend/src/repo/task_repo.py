@@ -8,7 +8,6 @@ from sqlalchemy import func, text
 from services.activitylog_service import ActivityService
 from models.activitylog import ActivityAction
 
-
 def utc_now() -> datetime:
     return datetime.now(timezone.utc)
 
@@ -130,9 +129,9 @@ class TaskRepo:
 
             changes = {}
             for field in ALLOWED_UPDATE_FIELDS:
-                new_value = getattr(task, field)
+                new_value = updates.get(field)
                 old_value = old_values.get(field)
-                if new_value != old_value:
+                if new_value != old_value and new_value is not None:
                     changes[field] = {
                         "old": old_value,
                         "new": new_value,
